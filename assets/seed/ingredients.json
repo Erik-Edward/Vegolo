@@ -1,0 +1,101 @@
+[
+  {
+    "id": "milk",
+    "name": "Milk",
+    "status": "non-vegan",
+    "aliases": ["lactose", "milk solids", "casein", "whey", "whey powder", "skim milk powder"],
+    "enumbers": [],
+    "alternatives": ["soy milk", "oat milk"],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Dairy product from animals",
+    "sourceUrl": "https://example.org/milk"
+  },
+  {
+    "id": "egg",
+    "name": "Egg",
+    "status": "non-vegan",
+    "aliases": ["albumen"],
+    "enumbers": [],
+    "alternatives": ["flax egg", "chia egg"],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Animal-derived ingredient",
+    "sourceUrl": "https://example.org/egg"
+  },
+  {
+    "id": "gelatin",
+    "name": "Gelatin",
+    "status": "non-vegan",
+    "aliases": ["gelatine"],
+    "enumbers": [],
+    "alternatives": ["agar", "pectin"],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Derived from animal collagen",
+    "sourceUrl": "https://example.org/gelatin"
+  },
+  {
+    "id": "honey",
+    "name": "Honey",
+    "status": "non-vegan",
+    "aliases": [],
+    "enumbers": [],
+    "alternatives": ["maple syrup", "agave"],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Animal-derived (bees)",
+    "sourceUrl": "https://example.org/honey"
+  },
+  {
+    "id": "cochineal",
+    "name": "Cochineal / Carmine",
+    "status": "non-vegan",
+    "aliases": ["carmine", "cochineal"],
+    "enumbers": ["E120"],
+    "alternatives": ["beetroot red"],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Colorant derived from insects",
+    "sourceUrl": "https://example.org/cochineal"
+  },
+  {
+    "id": "shellac",
+    "name": "Shellac",
+    "status": "non-vegan",
+    "aliases": [],
+    "enumbers": ["E904"],
+    "alternatives": [],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Resin secreted by the lac insect",
+    "sourceUrl": "https://example.org/shellac"
+  },
+  {
+    "id": "beeswax",
+    "name": "Beeswax",
+    "status": "non-vegan",
+    "aliases": [],
+    "enumbers": ["E901"],
+    "alternatives": [],
+    "regionRules": {"US": "non-vegan", "EU": "non-vegan"},
+    "rationale": "Wax produced by bees",
+    "sourceUrl": "https://example.org/beeswax"
+  },
+  {
+    "id": "lecithins",
+    "name": "Lecithins",
+    "status": "maybe",
+    "aliases": ["lecithin"],
+    "enumbers": ["E322"],
+    "alternatives": [],
+    "regionRules": {"US": "maybe", "EU": "maybe"},
+    "rationale": "May be plant- or animal-derived",
+    "sourceUrl": "https://example.org/lecithins"
+  },
+  {
+    "id": "mono-diglycerides",
+    "name": "Mono- and diglycerides of fatty acids",
+    "status": "maybe",
+    "aliases": ["monoglycerides", "diglycerides"],
+    "enumbers": ["E471", "E472"],
+    "alternatives": [],
+    "regionRules": {"US": "maybe", "EU": "maybe"},
+    "rationale": "May be plant- or animal-derived",
+    "sourceUrl": "https://example.org/mono-diglycerides"
+  }
+]
