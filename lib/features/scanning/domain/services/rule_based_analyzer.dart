@@ -3,6 +3,7 @@ import 'package:vegolo/core/camera/ocr_models.dart';
 import 'package:vegolo/features/ingredients/domain/entities/ingredient.dart';
 import 'package:vegolo/features/ingredients/domain/repositories/ingredient_repository.dart';
 import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
+import 'package:vegolo/shared/utils/text_normalizer.dart';
 
 /// Deterministic rule layer that interprets OCR output before invoking AI.
 @LazySingleton()
@@ -13,8 +14,8 @@ class RuleBasedAnalyzer {
   final Map<String, List<Ingredient>> _matchCache = {};
 
   Future<VeganAnalysis> analyze(OcrResult result) async {
-    final text = result.fullText.trim().toLowerCase();
-    if (text.isEmpty) {
+    final raw = result.fullText.trim();
+    if (raw.isEmpty) {
       return const VeganAnalysis(
         isVegan: false,
         confidence: 0.0,
@@ -22,7 +23,11 @@ class RuleBasedAnalyzer {
       );
     }
 
-    final flagged = await _findFlaggedIngredients(text);
+    final normalized = TextNormalizer.normalizeForIngredients(raw);
+    final flagged = await _findFlaggedIngredients(
+      rawLower: raw.toLowerCase(),
+      normalized: normalized,
+    );
     if (flagged.isNotEmpty) {
       return VeganAnalysis(
         isVegan: false,
@@ -37,9 +42,12 @@ class RuleBasedAnalyzer {
     return const VeganAnalysis(isVegan: true, confidence: 0.5);
   }
 
-  Future<List<Ingredient>> _findFlaggedIngredients(String text) async {
-    final tokens = text
-        .split(RegExp(r'\W+'))
+  Future<List<Ingredient>> _findFlaggedIngredients({
+    required String rawLower,
+    required String normalized,
+  }) async {
+    final tokens = normalized
+        .split(RegExp(r'\s+'))
         .map((token) => token.trim().toLowerCase())
         .where((token) => token.isNotEmpty)
         .toList(growable: false);
@@ -93,7 +101,7 @@ class RuleBasedAnalyzer {
 
     // E-number pass: find E-codes in text and map to ingredients.
     final ecodeMatches = RegExp(r'\b(e[-\s]?\d{1,3}[a-z]?)\b', caseSensitive: false)
-        .allMatches(text)
+        .allMatches(rawLower)
         .map((m) => m.group(1)!)
         .toSet();
     for (final code in ecodeMatches) {

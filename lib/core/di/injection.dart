@@ -5,5 +5,7 @@ import 'injection.config.dart';
 
 final GetIt getIt = GetIt.instance;
 
-@InjectableInit()
-Future<void> configureDependencies() => Future.sync(() => getIt.init());
+@InjectableInit(generateForDir: ['lib'])
+Future<void> configureDependencies() async {
+  await getIt.init();
+}

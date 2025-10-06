@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vegolo/core/ai/gemma_service.dart';
 import 'package:vegolo/core/ai/model_manager.dart';
 import 'package:vegolo/core/camera/ocr_processor.dart';
@@ -16,6 +17,7 @@ void main() {
 
   setUp(() async {
     await getIt.reset();
+    SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
   tearDown(() async {

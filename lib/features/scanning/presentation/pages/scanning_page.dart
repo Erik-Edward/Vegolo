@@ -19,8 +19,36 @@ class ScanningPage extends StatefulWidget {
   State<ScanningPage> createState() => _ScanningPageState();
 }
 
-class _ScanningPageState extends State<ScanningPage> {
+class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver {
   bool _showOcrOverlay = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final bloc = context.read<ScanningBloc>();
+    switch (state) {
+      case AppLifecycleState.resumed:
+        bloc.add(const ScanningAppResumed());
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        bloc.add(const ScanningAppPaused());
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +56,7 @@ class _ScanningPageState extends State<ScanningPage> {
       appBar: AppBar(
         title: const Text(AppConstants.appName),
         actions: [
+          _FlashToggleButton(),
           IconButton(
             tooltip: _showOcrOverlay ? 'Hide OCR' : 'Show OCR',
             icon: Icon(_showOcrOverlay ? Icons.bug_report : Icons.text_snippet),
@@ -211,6 +240,78 @@ class _ScanningPageState extends State<ScanningPage> {
       ScanningStatus.success => Icons.check_circle,
       ScanningStatus.failure => Icons.error,
     };
+  }
+}
+
+class _FlashToggleButton extends StatefulWidget {
+  @override
+  State<_FlashToggleButton> createState() => _FlashToggleButtonState();
+}
+
+class _FlashToggleButtonState extends State<_FlashToggleButton> {
+  FlashMode _mode = FlashMode.off;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final c = getIt<ScannerService>().previewController;
+      if (c != null) {
+        setState(() => _mode = c.value.flashMode);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tooltip = switch (_mode) {
+      FlashMode.off => 'Flash: Off',
+      FlashMode.auto => 'Flash: Auto',
+      FlashMode.always => 'Flash: On',
+      FlashMode.torch => 'Flash: Torch',
+    };
+
+    final icon = switch (_mode) {
+      FlashMode.off => Icons.flash_off,
+      FlashMode.auto => Icons.flash_auto,
+      FlashMode.always => Icons.flash_on,
+      FlashMode.torch => Icons.highlight,
+    };
+
+    return IconButton(
+      tooltip: tooltip,
+      icon: _busy
+          ? const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon),
+      onPressed: _busy ? null : _toggle,
+    );
+  }
+
+  Future<void> _toggle() async {
+    final service = getIt<ScannerService>();
+    final next = switch (_mode) {
+      FlashMode.off => FlashMode.torch,
+      FlashMode.torch => FlashMode.off,
+      FlashMode.auto => FlashMode.torch,
+      FlashMode.always => FlashMode.off,
+    };
+    setState(() => _busy = true);
+    try {
+      await service.updateFlashMode(next);
+      setState(() => _mode = next);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Flash not supported: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }
 

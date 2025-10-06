@@ -14,7 +14,43 @@ class HistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = getIt<ScanHistoryRepository>();
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(
+        title: const Text('History'),
+        actions: [
+          IconButton(
+            tooltip: 'Delete all history',
+            icon: const Icon(Icons.delete_forever),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete all history?'),
+                  content: const Text(
+                    'This will remove all saved scans and thumbnails. This action cannot be undone.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await repo.clearHistory();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('History cleared')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<List<ScanHistoryEntry>>(
         stream: repo.watchHistory(),
         builder: (context, snapshot) {
@@ -51,7 +87,7 @@ class _HistoryListTile extends StatelessWidget {
         : (entry.analysis.flaggedIngredients.isNotEmpty
             ? 'Non‑vegan: ${entry.analysis.flaggedIngredients.join(', ')}'
             : 'Non‑vegan');
-    final icon = entry.analysis.isVegan
+    final statusIcon = entry.analysis.isVegan
         ? const Icon(Icons.check_circle, color: Colors.green)
         : const Icon(Icons.error, color: Colors.red);
 
@@ -84,7 +120,74 @@ class _HistoryListTile extends StatelessWidget {
       leading: leading,
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: icon,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          statusIcon,
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Delete image data',
+            icon: const Icon(Icons.image_not_supported_outlined),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete image data?'),
+                  content: const Text('Keep the entry metadata but remove images.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete images'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await getIt<ScanHistoryRepository>().deleteEntryImageData(entry.id);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Image data deleted')),
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Delete',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete this entry?'),
+                  content: const Text('Remove this scan and its image data.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await getIt<ScanHistoryRepository>().deleteEntry(entry.id);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Entry deleted')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => _HistoryDetailPage(entry: entry)),
@@ -163,4 +266,3 @@ class _HistoryDetailPage extends StatelessWidget {
     );
   }
 }
-

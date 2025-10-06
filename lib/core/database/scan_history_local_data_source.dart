@@ -10,6 +10,8 @@ abstract class ScanHistoryLocalDataSource {
   Future<void> insertEntry(ScanHistoryEntryModel entry);
   Stream<List<ScanHistoryEntryModel>> watchEntries();
   Future<List<ScanHistoryEntryModel>> getAllEntries();
+  Future<ScanHistoryEntryModel?> getById(String id);
+  Future<void> deleteById(String id);
   Future<void> clear();
 }
 
@@ -47,6 +49,21 @@ class DriftScanHistoryLocalDataSource implements ScanHistoryLocalDataSource {
   Future<List<ScanHistoryEntryModel>> getAllEntries() async {
     final rows = await _db.select(_db.scanHistoryEntries).get();
     return _mapRows(rows);
+  }
+
+  @override
+  Future<ScanHistoryEntryModel?> getById(String id) async {
+    final row = await (_db.select(_db.scanHistoryEntries)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return _mapRows([row]).first;
+  }
+
+  @override
+  Future<void> deleteById(String id) async {
+    await (_db.delete(_db.scanHistoryEntries)..where((t) => t.id.equals(id)))
+        .go();
   }
 
   @override

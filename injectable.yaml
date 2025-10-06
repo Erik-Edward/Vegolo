@@ -1,6 +1,0 @@
-targets:
-  $default:
-    generate_for:
-      - lib/**
-    include_glob:
-      - lib/**.dart

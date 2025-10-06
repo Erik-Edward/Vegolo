@@ -12,6 +12,7 @@ import 'package:vegolo/core/di/injection.dart';
 import 'package:vegolo/features/history/domain/entities/scan_history_entry.dart';
 import 'package:vegolo/features/history/domain/repositories/scan_history_repository.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
+import 'package:vegolo/shared/utils/text_normalizer.dart';
 
 part 'scanning_event.dart';
 part 'scanning_state.dart';
@@ -166,7 +167,16 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     await _frameSubscription?.cancel();
     _frameSubscription = null;
 
-    // Pause camera to stop streaming safely (keep controller alive to avoid preview crash).
+    // Capture a still before pausing preview to avoid platform-specific
+    // takePicture limitations when preview is paused.
+    String? fullPath;
+    try {
+      fullPath = await _scannerService.captureStill();
+    } catch (_) {
+      fullPath = null;
+    }
+
+    // Pause camera to stop preview safely (keep controller alive for UI).
     try {
       await _scannerService.pause();
     } catch (_) {}
@@ -174,7 +184,6 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     // Best-effort save to history (fallback to 'uncertain' analysis when absent).
     try {
       if (getIt.isRegistered<ScanHistoryRepository>()) {
-        final fullPath = await _scannerService.captureStill();
         final repo = getIt<ScanHistoryRepository>();
         final analysis = state.analysis ?? const VeganAnalysis(
           isVegan: false,
@@ -190,11 +199,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           thumbnailPath: null,
           fullImagePath: fullPath,
           hasFullImage: fullPath != null,
-          detectedIngredients: state.ocrResult?.blocks
-                  .map((b) => b.text)
-                  .where((s) => s.trim().isNotEmpty)
-                  .toList(growable: false) ??
-              const [],
+          detectedIngredients: _buildDetectedIngredients(state.ocrResult),
         );
         await repo.saveEntry(entry);
       }
@@ -298,5 +303,20 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     await _scannerService.dispose();
     await _ocrProcessor.dispose();
     return super.close();
+  }
+
+  List<String> _buildDetectedIngredients(OcrResult? result) {
+    if (result == null) return const [];
+    final lines = result.fullText.split('\n');
+    final cleaned = <String>{};
+    for (final line in lines) {
+      final norm = TextNormalizer.normalizeLineForIngredients(line);
+      if (norm.isEmpty) continue;
+      // Skip tiny non-informative lines
+      if (norm.length < 3) continue;
+      cleaned.add(norm);
+    }
+    // Limit to a reasonable number to keep payload small
+    return cleaned.take(20).toList(growable: false);
   }
 }
