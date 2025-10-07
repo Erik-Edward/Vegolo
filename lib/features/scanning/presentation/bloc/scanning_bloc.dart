@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -11,7 +12,9 @@ import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
 import 'package:vegolo/core/di/injection.dart';
 import 'package:vegolo/features/history/domain/entities/scan_history_entry.dart';
 import 'package:vegolo/features/history/domain/repositories/scan_history_repository.dart';
+import 'package:vegolo/features/history/data/thumbnail_generator.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
+import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
 import 'package:vegolo/shared/utils/text_normalizer.dart';
 
 part 'scanning_event.dart';
@@ -39,6 +42,10 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     on<ScanningAppPaused>(_onAppPaused);
     on<ScanningAppResumed>(_onAppResumed);
     on<ScanningOpenSettingsRequested>(_onOpenSettingsRequested);
+    on<ScanningBarcodeProductReceived>(_onBarcodeProductReceived);
+    on<ScanningClearBarcodeInfo>(_onClearBarcodeInfo);
+    on<ScanningOcrSuspended>(_onOcrSuspended);
+    on<ScanningOcrResumed>(_onOcrResumed);
   }
 
   final ScannerService _scannerService;
@@ -57,7 +64,16 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
       return;
     }
 
-    emit(state.copyWith(status: ScanningStatus.initializing, clearError: true));
+    emit(state.copyWith(
+      status: ScanningStatus.initializing,
+      clearError: true,
+      clearProduct: true,
+      clearBarcode: true,
+      clearOffImageUrl: true,
+      clearOffLastUpdated: true,
+      clearOffIngredients: true,
+      clearOffIngredientsText: true,
+    ));
 
     add(const ScanningPermissionRequested());
   }
@@ -190,16 +206,33 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           confidence: 0.0,
           flaggedIngredients: ['uncertain'],
         );
+        String? thumbnailPath;
+        // Prefer OFF product image for thumbnail if available.
+        final offUrl = state.offImageUrl;
+        if (offUrl != null && offUrl.isNotEmpty) {
+          try {
+            final barcodeRepo = getIt<BarcodeRepository>();
+            final bytes = await barcodeRepo.fetchImageBytes(offUrl);
+            if (bytes != null) {
+              final thumbGen = getIt<ThumbnailGenerator>();
+              final thumbBytes = await thumbGen.createThumbnail(bytes);
+              thumbnailPath = await thumbGen.persistThumbnail(thumbBytes);
+            }
+          } catch (_) {}
+        }
+
+        final detected = state.offIngredients ??
+            _buildDetectedIngredients(state.ocrResult);
         final entry = ScanHistoryEntry(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
           scannedAt: DateTime.now(),
           analysis: analysis,
-          productName: null,
-          barcode: null,
-          thumbnailPath: null,
+          productName: state.productName,
+          barcode: state.barcode,
+          thumbnailPath: thumbnailPath,
           fullImagePath: fullPath,
           hasFullImage: fullPath != null,
-          detectedIngredients: _buildDetectedIngredients(state.ocrResult),
+          detectedIngredients: detected,
         );
         await repo.saveEntry(entry);
       }
@@ -218,10 +251,78 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     );
   }
 
+  Future<void> _onBarcodeProductReceived(
+    ScanningBarcodeProductReceived event,
+    Emitter<ScanningState> emit,
+  ) async {
+    emit(state.copyWith(
+      productName: event.productName,
+      barcode: event.barcode,
+      offImageUrl: event.imageUrl,
+      offLastUpdated: event.lastUpdated,
+      offIngredients: event.ingredients,
+      offIngredientsText: event.ingredientsText,
+    ));
+
+    // Analyze OFF ingredients without invoking OCR.
+    final ingredientsText = event.ingredientsText ??
+        (event.ingredients?.join(', ') ?? '');
+    if (ingredientsText.trim().isNotEmpty) {
+      try {
+        final dummyFrame = ScannerFrame(
+          bytes: Uint8List(0),
+          timestamp: DateTime.now(),
+        );
+        final offOcr = OcrResult(
+          fullText: ingredientsText,
+          blocks: const [],
+          frame: dummyFrame,
+        );
+        final analysis = await _performScanAnalysis(offOcr);
+        emit(state.copyWith(analysis: analysis));
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _onClearBarcodeInfo(
+    ScanningClearBarcodeInfo event,
+    Emitter<ScanningState> emit,
+  ) async {
+    emit(state.copyWith(
+      clearProduct: true,
+      clearBarcode: true,
+      clearOffImageUrl: true,
+      clearOffLastUpdated: true,
+      clearOffIngredients: true,
+      clearOffIngredientsText: true,
+    ));
+  }
+
+  Future<void> _onOcrSuspended(
+    ScanningOcrSuspended event,
+    Emitter<ScanningState> emit,
+  ) async {
+    emit(state.copyWith(suspendOcr: true));
+  }
+
+  Future<void> _onOcrResumed(
+    ScanningOcrResumed event,
+    Emitter<ScanningState> emit,
+  ) async {
+    // Only resume OCR if there is no active barcode product.
+    if (state.barcode == null) {
+      emit(state.copyWith(suspendOcr: false));
+    }
+  }
+
   Future<void> _onFrameReceived(
     _ScannerFrameReceived event,
     Emitter<ScanningState> emit,
   ) async {
+    // Do not process OCR when suspended or when a barcode/ OFF product is active.
+    if (state.suspendOcr || state.barcode != null) {
+      return;
+    }
     if (_isProcessingFrame) {
       return;
     }
@@ -316,7 +417,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
       if (norm.length < 3) continue;
       cleaned.add(norm);
     }
-    // Limit to a reasonable number to keep payload small
-    return cleaned.take(20).toList(growable: false);
+    // Return full set (deduplicated); UI can handle long lists with scrolling.
+    return cleaned.toList(growable: false);
   }
 }

@@ -11,6 +11,8 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/camera/scanner_service.dart';
 import 'package:vegolo/features/history/presentation/pages/history_page.dart';
 import 'package:vegolo/features/ingredients/data/seed/ingredient_seed_loader.dart';
+import 'package:vegolo/features/scanning/presentation/pages/barcode_scan_page.dart';
+import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
 
 class ScanningPage extends StatefulWidget {
   const ScanningPage({super.key});
@@ -58,6 +60,39 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         actions: [
           _FlashToggleButton(),
           IconButton(
+            tooltip: 'Scan barcode',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () async {
+              // Suspend OCR while in barcode mode.
+              context.read<ScanningBloc>().add(const ScanningOcrSuspended());
+              final code = await Navigator.of(context)
+                  .push<String>(
+                MaterialPageRoute(builder: (_) => const BarcodeScanPage()),
+              )
+                  .whenComplete(() {
+                // Resume OCR if no barcode result active.
+                if (mounted) {
+                  context.read<ScanningBloc>().add(const ScanningOcrResumed());
+                }
+              });
+              if (!mounted || code == null) return;
+              // Opt-in: only fetch OFF after explicit scan.
+              final repo = getIt<BarcodeRepository>();
+              final product = await repo.fetchOffProduct(code);
+              if (!mounted) return;
+              context.read<ScanningBloc>().add(
+                    ScanningBarcodeProductReceived(
+                      barcode: code,
+                      productName: product?.productName,
+                      imageUrl: product?.imageUrl,
+                      lastUpdated: product?.lastUpdated,
+                      ingredients: product?.ingredients,
+                      ingredientsText: product?.ingredientsText,
+                    ),
+                  );
+            },
+          ),
+          IconButton(
             tooltip: _showOcrOverlay ? 'Hide OCR' : 'Show OCR',
             icon: Icon(_showOcrOverlay ? Icons.bug_report : Icons.text_snippet),
             onPressed: () => setState(() => _showOcrOverlay = !_showOcrOverlay),
@@ -87,12 +122,7 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const HistoryPage()),
-        ),
-        child: const Icon(Icons.history),
-      ),
+      // History is accessible via bottom navigation in AppShell.
       body: BlocBuilder<ScanningBloc, ScanningState>(
         builder: (context, state) {
           final bloc = context.read<ScanningBloc>();
@@ -143,6 +173,44 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
                     subtitle: subtitle,
                     trailing: Icon(_statusIcon(state.status), color: color),
                   ),
+                  if (state.barcode != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Chip(
+                            label: const Text('OFF'),
+                            avatar: const Icon(Icons.inventory_2, size: 16),
+                          ),
+                          if (state.productName != null)
+                            Text(
+                              state.productName!,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          if (state.offLastUpdated != null)
+                            Text(
+                              'Last updated: '
+                              '${state.offLastUpdated!.toLocal().toIso8601String().split('T').first}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Unofficial info. Double-check label if unsure.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: Colors.black54),
+                      ),
+                    ),
+                  ],
                   if (_showOcrOverlay) ...[
                     const SizedBox(height: 8),
                     _OcrDebugPanel(text: detectedText ?? ''),

@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/di/injection.dart';
 import 'features/ingredients/data/seed/ingredient_seed_loader.dart';
 import 'features/scanning/presentation/bloc/scanning_bloc.dart';
-import 'features/scanning/presentation/pages/scanning_page.dart';
+import 'app/app_shell.dart';
 import 'shared/theme/app_theme.dart';
 import 'shared/utils/constants.dart';
 
@@ -31,7 +31,7 @@ class VegoloApp extends StatelessWidget {
         title: AppConstants.appName,
         theme: AppTheme.light,
         debugShowCheckedModeBanner: false,
-        home: const ScanningPage(),
+        home: const AppShell(),
       ),
     );
   }

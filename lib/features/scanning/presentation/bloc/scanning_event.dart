@@ -65,3 +65,43 @@ class _ScanningFailed extends ScanningEvent {
   @override
   List<Object?> get props => [message];
 }
+
+class ScanningOcrSuspended extends ScanningEvent {
+  const ScanningOcrSuspended();
+}
+
+class ScanningOcrResumed extends ScanningEvent {
+  const ScanningOcrResumed();
+}
+
+class ScanningBarcodeProductReceived extends ScanningEvent {
+  const ScanningBarcodeProductReceived({
+    required this.barcode,
+    this.productName,
+    this.imageUrl,
+    this.lastUpdated,
+    this.ingredients,
+    this.ingredientsText,
+  });
+
+  final String barcode;
+  final String? productName;
+  final String? imageUrl;
+  final DateTime? lastUpdated;
+  final List<String>? ingredients;
+  final String? ingredientsText;
+
+  @override
+  List<Object?> get props => [
+        barcode,
+        productName,
+        imageUrl,
+        lastUpdated,
+        ingredients,
+        ingredientsText,
+      ];
+}
+
+class ScanningClearBarcodeInfo extends ScanningEvent {
+  const ScanningClearBarcodeInfo();
+}
