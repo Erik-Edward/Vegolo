@@ -15,6 +15,7 @@ import 'package:vegolo/features/history/domain/repositories/scan_history_reposit
 import 'package:vegolo/features/history/data/thumbnail_generator.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
 import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
+import 'package:vegolo/core/barcode/barcode_scanner.dart';
 import 'package:vegolo/shared/utils/text_normalizer.dart';
 
 part 'scanning_event.dart';
@@ -46,6 +47,8 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     on<ScanningClearBarcodeInfo>(_onClearBarcodeInfo);
     on<ScanningOcrSuspended>(_onOcrSuspended);
     on<ScanningOcrResumed>(_onOcrResumed);
+    on<ScanningModeChanged>(_onModeChanged);
+    on<ScanningDetailShown>(_onDetailShown);
   }
 
   final ScannerService _scannerService;
@@ -54,6 +57,12 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
   final PerformScanAnalysis _performScanAnalysis;
   bool _isProcessingFrame = false;
   StreamSubscription<ScannerFrame>? _frameSubscription;
+  DateTime? _lastOcrAt;
+  String? _lastNormalizedOcr;
+  static const Duration _minOcrInterval = Duration(milliseconds: 300);
+  DateTime? _lastBarcodeAt;
+  static const Duration _minBarcodeInterval = Duration(milliseconds: 250);
+  bool _autoStoppingBarcode = false;
 
   Future<void> _onScanningStarted(
     ScanningStarted event,
@@ -151,6 +160,33 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     await _scannerService.openAppSettings();
   }
 
+  Future<void> _onModeChanged(
+    ScanningModeChanged event,
+    Emitter<ScanningState> emit,
+  ) async {
+    final newMode = event.mode;
+    if (newMode == state.mode) return;
+    try {
+      if (newMode == ScanMode.barcode) {
+        await _scannerService.setProcessEveryNthFrame(6);
+        emit(state.copyWith(mode: newMode, suspendOcr: true));
+      } else {
+        await _scannerService.setProcessEveryNthFrame(3);
+        emit(state.copyWith(
+          mode: newMode,
+          suspendOcr: false,
+          clearBarcode: true,
+          clearOffImageUrl: true,
+          clearOffLastUpdated: true,
+          clearOffIngredients: true,
+          clearOffIngredientsText: true,
+        ));
+      }
+    } catch (_) {
+      emit(state.copyWith(mode: newMode));
+    }
+  }
+
   Future<void> _onScanningPaused(
     ScanningPaused event,
     Emitter<ScanningState> emit,
@@ -198,6 +234,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     } catch (_) {}
 
     // Best-effort save to history (fallback to 'uncertain' analysis when absent).
+    ScanHistoryEntry? pendingEntry;
     try {
       if (getIt.isRegistered<ScanHistoryRepository>()) {
         final repo = getIt<ScanHistoryRepository>();
@@ -235,6 +272,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           detectedIngredients: detected,
         );
         await repo.saveEntry(entry);
+        pendingEntry = entry;
       }
     } catch (_) {
       // Ignore save failures in MVP.
@@ -247,8 +285,10 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         clearError: true,
         clearOcr: true,
         clearAnalysis: true,
+        pendingDetailEntry: pendingEntry,
       ),
     );
+    _autoStoppingBarcode = false;
   }
 
   Future<void> _onBarcodeProductReceived(
@@ -281,6 +321,12 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         final analysis = await _performScanAnalysis(offOcr);
         emit(state.copyWith(analysis: analysis));
       } catch (_) {}
+    }
+
+    // In barcode mode, auto-stop once when a product has been received.
+    if (state.mode == ScanMode.barcode && !_autoStoppingBarcode) {
+      _autoStoppingBarcode = true;
+      add(const ScanningStopped());
     }
   }
 
@@ -315,12 +361,47 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     }
   }
 
+  Future<void> _onDetailShown(
+    ScanningDetailShown event,
+    Emitter<ScanningState> emit,
+  ) async {
+    emit(state.copyWith(clearPendingDetail: true));
+  }
+
   Future<void> _onFrameReceived(
     _ScannerFrameReceived event,
     Emitter<ScanningState> emit,
   ) async {
+    // Barcode mode: detect barcodes, no OCR.
+    if (state.mode == ScanMode.barcode) {
+      final now = DateTime.now();
+      if (_lastBarcodeAt != null && now.difference(_lastBarcodeAt!) < _minBarcodeInterval) {
+        return;
+      }
+      _lastBarcodeAt = now;
+      try {
+        final code = await getIt<BarcodeScannerService>().detectBarcode(event.frame);
+        if (code != null) {
+          final product = await getIt<BarcodeRepository>().fetchOffProduct(code);
+          add(ScanningBarcodeProductReceived(
+            barcode: code,
+            productName: product?.productName,
+            imageUrl: product?.imageUrl,
+            lastUpdated: product?.lastUpdated,
+            ingredients: product?.ingredients,
+            ingredientsText: product?.ingredientsText,
+          ));
+        }
+      } catch (_) {}
+      return;
+    }
     // Do not process OCR when suspended or when a barcode/ OFF product is active.
     if (state.suspendOcr || state.barcode != null) {
+      return;
+    }
+    // Time-based throttle to avoid excessive OCR calls.
+    final now = DateTime.now();
+    if (_lastOcrAt != null && now.difference(_lastOcrAt!) < _minOcrInterval) {
       return;
     }
     if (_isProcessingFrame) {
@@ -338,10 +419,26 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
 
     try {
       final ocrResult = await _ocrProcessor.processFrame(event.frame);
+      _lastOcrAt = now;
       // Debug summary: length + first 80 chars (strip newlines)
       final brief = ocrResult.fullText.replaceAll('\n', ' ');
       // ignore: avoid_print
       print('[OCR] len=${brief.length} head="${brief.length > 80 ? brief.substring(0, 80) : brief}"');
+      // Debounce analysis if text hasn't materially changed.
+      final normalized = TextNormalizer.normalizeForIngredients(ocrResult.fullText);
+      if (_lastNormalizedOcr != null && _lastNormalizedOcr == normalized) {
+        emit(
+          state.copyWith(
+            status: ScanningStatus.scanning,
+            ocrResult: ocrResult,
+            latestFrame: event.frame,
+            clearError: true,
+          ),
+        );
+        return;
+      }
+      _lastNormalizedOcr = normalized;
+
       final analysis = await _performScanAnalysis(ocrResult);
       emit(
         state.copyWith(
@@ -383,6 +480,11 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     );
   }
 
+  @override
+  void onEvent(ScanningEvent event) {
+    super.onEvent(event);
+  }
+
   Future<void> _listenToFrames() async {
     await _frameSubscription?.cancel();
     try {
@@ -408,16 +510,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
 
   List<String> _buildDetectedIngredients(OcrResult? result) {
     if (result == null) return const [];
-    final lines = result.fullText.split('\n');
-    final cleaned = <String>{};
-    for (final line in lines) {
-      final norm = TextNormalizer.normalizeLineForIngredients(line);
-      if (norm.isEmpty) continue;
-      // Skip tiny non-informative lines
-      if (norm.length < 3) continue;
-      cleaned.add(norm);
-    }
-    // Return full set (deduplicated); UI can handle long lists with scrolling.
-    return cleaned.toList(growable: false);
+    final lines = TextNormalizer.extractIngredientLines(result.fullText);
+    return lines.toSet().toList(growable: false);
   }
 }

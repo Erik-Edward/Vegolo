@@ -2,6 +2,8 @@ part of 'scanning_bloc.dart';
 
 enum ScanningStatus { idle, initializing, scanning, paused, success, failure }
 
+enum ScanMode { ingredients, barcode }
+
 class ScanningState extends Equatable {
   const ScanningState({
     required this.status,
@@ -18,6 +20,8 @@ class ScanningState extends Equatable {
     this.offIngredients,
     this.offIngredientsText,
     this.suspendOcr = false,
+    this.mode = ScanMode.ingredients,
+    this.pendingDetailEntry,
   });
 
   const ScanningState.initial() : this(status: ScanningStatus.idle);
@@ -36,6 +40,8 @@ class ScanningState extends Equatable {
   final List<String>? offIngredients;
   final String? offIngredientsText;
   final bool suspendOcr;
+  final ScanMode mode;
+  final ScanHistoryEntry? pendingDetailEntry;
 
   ScanningState copyWith({
     ScanningStatus? status,
@@ -62,6 +68,9 @@ class ScanningState extends Equatable {
     String? offIngredientsText,
     bool clearOffIngredientsText = false,
     bool? suspendOcr,
+    ScanMode? mode,
+    ScanHistoryEntry? pendingDetailEntry,
+    bool clearPendingDetail = false,
   }) {
     return ScanningState(
       status: status ?? this.status,
@@ -85,6 +94,10 @@ class ScanningState extends Equatable {
           ? null
           : (offIngredientsText ?? this.offIngredientsText),
       suspendOcr: suspendOcr ?? this.suspendOcr,
+      mode: mode ?? this.mode,
+      pendingDetailEntry: clearPendingDetail
+          ? null
+          : (pendingDetailEntry ?? this.pendingDetailEntry),
     );
   }
 
@@ -104,5 +117,7 @@ class ScanningState extends Equatable {
     offIngredients,
     offIngredientsText,
     suspendOcr,
+    mode,
+    pendingDetailEntry,
   ];
 }

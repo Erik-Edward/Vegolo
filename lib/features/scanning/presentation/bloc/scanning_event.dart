@@ -74,6 +74,18 @@ class ScanningOcrResumed extends ScanningEvent {
   const ScanningOcrResumed();
 }
 
+class ScanningModeChanged extends ScanningEvent {
+  const ScanningModeChanged(this.mode);
+  final ScanMode mode;
+
+  @override
+  List<Object?> get props => [mode];
+}
+
+class ScanningDetailShown extends ScanningEvent {
+  const ScanningDetailShown();
+}
+
 class ScanningBarcodeProductReceived extends ScanningEvent {
   const ScanningBarcodeProductReceived({
     required this.barcode,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -15,6 +16,11 @@ class ThumbnailGenerator {
     Uint8List sourceBytes, {
     int maxDimension = 200,
   }) async {
+    // Run heavy image work off the UI isolate to avoid jank.
+    return Isolate.run(() => _createThumbnailSync(sourceBytes, maxDimension));
+  }
+
+  static Uint8List _createThumbnailSync(Uint8List sourceBytes, int maxDimension) {
     final source = img.decodeImage(sourceBytes);
     if (source == null) {
       return sourceBytes;

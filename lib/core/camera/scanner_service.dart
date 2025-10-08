@@ -23,6 +23,8 @@ abstract class ScannerService {
   Future<void> setFocusAndExposurePoint(Offset point);
   // Capture a still image and return the file path if successful.
   Future<String?> captureStill();
+  // Adjust frame processing stride without reinit.
+  Future<void> setProcessEveryNthFrame(int n);
 }
 
 @LazySingleton(as: ScannerService)
@@ -66,6 +68,12 @@ class CameraScannerService implements ScannerService {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<void> setProcessEveryNthFrame(int n) async {
+    if (n <= 0) return;
+    _config = _config.copyWith(processEveryNthFrame: n);
   }
 
   @override

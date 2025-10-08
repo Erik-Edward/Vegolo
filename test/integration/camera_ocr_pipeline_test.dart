@@ -117,6 +117,9 @@ class FakeScannerService implements ScannerService {
 
   @override
   Future<String?> captureStill() async => null;
+
+  @override
+  Future<void> setProcessEveryNthFrame(int n) async {}
 }
 
 class StubOcrProcessor extends Mock implements OcrProcessor {

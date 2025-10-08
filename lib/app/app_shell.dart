@@ -41,8 +41,12 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _onWillPop();
+      },
       child: Scaffold(
         body: IndexedStack(
           index: _index,
@@ -92,4 +96,3 @@ class _TabNavigator extends StatelessWidget {
     );
   }
 }
-

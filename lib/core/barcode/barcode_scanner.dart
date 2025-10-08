@@ -8,6 +8,7 @@ import '../camera/scanner_models.dart';
 abstract class BarcodeScannerService {
   Future<String?> detectBarcode(ScannerFrame frame);
   Future<void> dispose();
+  Future<String?> detectBarcodeFromFile(String filePath);
 }
 
 @LazySingleton(as: BarcodeScannerService)
@@ -43,6 +44,20 @@ class MlKitBarcodeScannerService implements BarcodeScannerService {
     );
 
     final input = InputImage.fromBytes(bytes: frame.bytes, metadata: metadata);
+    final barcodes = await _scanner.processImage(input);
+    if (barcodes.isEmpty) return null;
+    for (final b in barcodes) {
+      final value = b.rawValue?.trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<String?> detectBarcodeFromFile(String filePath) async {
+    final input = InputImage.fromFilePath(filePath);
     final barcodes = await _scanner.processImage(input);
     if (barcodes.isEmpty) return null;
     for (final b in barcodes) {

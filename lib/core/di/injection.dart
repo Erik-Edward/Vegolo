@@ -7,6 +7,7 @@ import '../barcode/barcode_scanner.dart';
 import '../../features/scanning/data/clients/open_food_facts_client.dart';
 import '../../features/scanning/data/repositories/barcode_repository_impl.dart';
 import '../../features/scanning/domain/repositories/barcode_repository.dart';
+import '../../features/scanning/data/cache/off_cache.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -27,9 +28,13 @@ Future<void> configureDependencies() async {
       () => OpenFoodFactsClient(getIt<http.Client>()),
     );
   }
+  if (!getIt.isRegistered<OffCache>()) {
+    // SharedPreferences is pre-resolved elsewhere in DI; if not, this will fail early and be visible.
+    getIt.registerLazySingleton<OffCache>(() => OffCache(getIt()));
+  }
   if (!getIt.isRegistered<BarcodeRepository>()) {
     getIt.registerLazySingleton<BarcodeRepository>(
-      () => BarcodeRepositoryImpl(getIt<OpenFoodFactsClient>()),
+      () => BarcodeRepositoryImpl(getIt<OpenFoodFactsClient>(), getIt<OffCache>()),
     );
   }
 }

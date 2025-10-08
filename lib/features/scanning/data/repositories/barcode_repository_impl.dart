@@ -6,13 +6,15 @@ import 'package:injectable/injectable.dart';
 import '../../domain/entities/off_product.dart';
 import '../../domain/repositories/barcode_repository.dart';
 import '../clients/open_food_facts_client.dart';
+import '../cache/off_cache.dart';
 import '../models/off_product_model.dart';
 
 @LazySingleton(as: BarcodeRepository)
 class BarcodeRepositoryImpl implements BarcodeRepository {
-  BarcodeRepositoryImpl(this._client);
+  BarcodeRepositoryImpl(this._client, this._cache);
 
   final OpenFoodFactsClient _client;
+  final OffCache _cache;
 
   // In-memory LRU cache for OFF products (session-only)
   static const _maxEntries = 64;
@@ -23,7 +25,13 @@ class BarcodeRepositoryImpl implements BarcodeRepository {
     final cached = _lru.get(barcode);
     if (cached != null) return cached;
 
-    final json = await _client.fetchProductJson(barcode);
+    // Disk cache (short TTL) to avoid repeated calls and enable offline.
+    Map<String, dynamic>? json = await _cache.get(barcode);
+    json ??= await _client.fetchProductJson(barcode);
+    if (json != null) {
+      // Store to disk cache for future use.
+      await _cache.put(barcode, json);
+    }
     if (json == null) return null;
     final model = OffProductModel.fromJson(json);
     final product = model.toDomain();
@@ -61,4 +69,3 @@ class _LruCache<K, V> {
     _map[key] = value;
   }
 }
-

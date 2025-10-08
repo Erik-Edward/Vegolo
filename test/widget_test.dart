@@ -10,6 +10,9 @@ import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.d
 import 'package:vegolo/features/scanning/presentation/bloc/scanning_bloc.dart';
 import 'package:vegolo/main.dart';
 import 'package:vegolo/shared/utils/constants.dart';
+import 'package:vegolo/features/history/domain/repositories/scan_history_repository.dart';
+import 'package:vegolo/features/history/domain/entities/scan_history_entry.dart';
+import 'package:vegolo/features/settings/domain/repositories/settings_repository.dart';
 
 class _DummyScannerService implements ScannerService {
   const _DummyScannerService();
@@ -47,6 +50,9 @@ class _DummyScannerService implements ScannerService {
 
   @override
   Future<String?> captureStill() async => null;
+
+  @override
+  Future<void> setProcessEveryNthFrame(int n) async {}
 }
 
 class _DummyOcrProcessor implements OcrProcessor {
@@ -85,6 +91,12 @@ void main() {
           ocrProcessor: getIt(),
           performScanAnalysis: getIt(),
         ),
+      )
+      ..registerLazySingleton<ScanHistoryRepository>(
+        () => _DummyHistoryRepo(),
+      )
+      ..registerLazySingleton<SettingsRepository>(
+        () => _DummySettingsRepo(),
       );
   });
 
@@ -99,4 +111,32 @@ void main() {
     expect(find.text('Ready to scan'), findsOneWidget);
     expect(find.text('Begin scanning'), findsOneWidget);
   });
+}
+
+class _DummyHistoryRepo implements ScanHistoryRepository {
+  @override
+  Future<void> clearHistory() async {}
+
+  @override
+  Future<void> deleteEntry(String id) async {}
+
+  @override
+  Future<void> deleteEntryImageData(String id) async {}
+
+  @override
+  Future<void> saveEntry(ScanHistoryEntry entry) async {}
+
+  @override
+  Stream<List<ScanHistoryEntry>> watchHistory() => const Stream.empty();
+}
+
+class _DummySettingsRepo implements SettingsRepository {
+  bool _v = false;
+  @override
+  Future<bool> getSaveFullImages() async => _v;
+
+  @override
+  Future<void> setSaveFullImages(bool value) async {
+    _v = value;
+  }
 }

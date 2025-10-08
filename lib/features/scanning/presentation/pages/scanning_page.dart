@@ -10,9 +10,10 @@ import '../../../../shared/widgets/scan_result_card.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/camera/scanner_service.dart';
 import 'package:vegolo/features/history/presentation/pages/history_page.dart';
+import 'package:vegolo/features/history/presentation/pages/history_detail_page.dart';
 import 'package:vegolo/features/ingredients/data/seed/ingredient_seed_loader.dart';
-import 'package:vegolo/features/scanning/presentation/pages/barcode_scan_page.dart';
 import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
+import 'package:vegolo/core/barcode/barcode_scanner.dart';
 
 class ScanningPage extends StatefulWidget {
   const ScanningPage({super.key});
@@ -59,39 +60,8 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         title: const Text(AppConstants.appName),
         actions: [
           _FlashToggleButton(),
-          IconButton(
-            tooltip: 'Scan barcode',
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () async {
-              // Suspend OCR while in barcode mode.
-              context.read<ScanningBloc>().add(const ScanningOcrSuspended());
-              final code = await Navigator.of(context)
-                  .push<String>(
-                MaterialPageRoute(builder: (_) => const BarcodeScanPage()),
-              )
-                  .whenComplete(() {
-                // Resume OCR if no barcode result active.
-                if (mounted) {
-                  context.read<ScanningBloc>().add(const ScanningOcrResumed());
-                }
-              });
-              if (!mounted || code == null) return;
-              // Opt-in: only fetch OFF after explicit scan.
-              final repo = getIt<BarcodeRepository>();
-              final product = await repo.fetchOffProduct(code);
-              if (!mounted) return;
-              context.read<ScanningBloc>().add(
-                    ScanningBarcodeProductReceived(
-                      barcode: code,
-                      productName: product?.productName,
-                      imageUrl: product?.imageUrl,
-                      lastUpdated: product?.lastUpdated,
-                      ingredients: product?.ingredients,
-                      ingredientsText: product?.ingredientsText,
-                    ),
-                  );
-            },
-          ),
+          _ModeToggle(),
+          _BarcodeSingleShotButton(),
           IconButton(
             tooltip: _showOcrOverlay ? 'Hide OCR' : 'Show OCR',
             icon: Icon(_showOcrOverlay ? Icons.bug_report : Icons.text_snippet),
@@ -123,8 +93,22 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         ],
       ),
       // History is accessible via bottom navigation in AppShell.
-      body: BlocBuilder<ScanningBloc, ScanningState>(
-        builder: (context, state) {
+      body: BlocListener<ScanningBloc, ScanningState>(
+        listenWhen: (prev, curr) =>
+            prev.pendingDetailEntry == null && curr.pendingDetailEntry != null,
+        listener: (context, state) async {
+          final entry = state.pendingDetailEntry!;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => HistoryDetailPage(entry: entry),
+            ),
+          );
+          if (context.mounted) {
+            context.read<ScanningBloc>().add(const ScanningDetailShown());
+          }
+        },
+        child: BlocBuilder<ScanningBloc, ScanningState>(
+          builder: (context, state) {
           final bloc = context.read<ScanningBloc>();
           final (color, statusLabel) = _statusVisuals(state.status);
           final scannerService = getIt<ScannerService>();
@@ -148,23 +132,30 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
 
           final (primaryLabel, primaryAction) = _primaryAction(
             state.status,
+            state.mode,
             bloc,
           );
-          final bool showStopButton = switch (state.status) {
+          final bool showStopButton = (state.mode != ScanMode.barcode) && switch (state.status) {
             ScanningStatus.idle || ScanningStatus.failure => false,
             ScanningStatus.initializing => false,
             _ => true,
           };
           final showSettingsButton = state.permanentlyDenied == true;
 
-          return SafeArea(
-            child: SingleChildScrollView(
+            return SafeArea(
+              child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Camera preview area
-                  _CameraPreviewArea(scannerService: scannerService, status: state.status),
+                  Stack(
+                    children: [
+                      _CameraPreviewArea(scannerService: scannerService, status: state.status),
+                      if (state.mode == ScanMode.barcode)
+                        Positioned.fill(child: _BarcodeOverlay()),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   ChameleonMascot(statusColor: color),
                   const SizedBox(height: 16),
@@ -202,12 +193,31 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
                     const SizedBox(height: 4),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Unofficial info. Double-check label if unsure.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: Colors.black54),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Unofficial info. Double-check label if unsure.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: Colors.black54),
+                          ),
+                          if ((state.offIngredients == null ||
+                                  state.offIngredients!.isEmpty) &&
+                              (state.offIngredientsText == null ||
+                                  state.offIngredientsText!.trim().isEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Ingredients unavailable on OFF for this product.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(color: Colors.black54),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -228,10 +238,16 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
                       ),
                   ],
                   const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: primaryAction,
-                    child: Text(primaryLabel),
-                  ),
+                  if (primaryAction != null)
+                    FilledButton(
+                      onPressed: primaryAction,
+                      child: Text(primaryLabel),
+                    )
+                  else
+                    FilledButton.tonal(
+                      onPressed: null,
+                      child: Text(primaryLabel),
+                    ),
                   if (showStopButton) ...[
                     const SizedBox(height: 12),
                     TextButton(
@@ -250,8 +266,9 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
                 ],
               ),
             ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -280,6 +297,7 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
 
   (String, VoidCallback?) _primaryAction(
     ScanningStatus status,
+    ScanMode mode,
     ScanningBloc bloc,
   ) {
     return switch (status) {
@@ -288,10 +306,12 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         () => bloc.add(const ScanningStarted()),
       ),
       ScanningStatus.initializing => ('Initializing…', null),
-      ScanningStatus.scanning || ScanningStatus.success => (
-        'Pause scanning',
-        () => bloc.add(const ScanningPaused()),
-      ),
+      ScanningStatus.scanning || ScanningStatus.success => mode == ScanMode.barcode
+          ? ('Scanning…', null)
+          : (
+              'Pause scanning',
+              () => bloc.add(const ScanningPaused()),
+            ),
       ScanningStatus.paused => (
         'Resume scanning',
         () => bloc.add(const ScanningResumed()),
@@ -380,6 +400,74 @@ class _FlashToggleButtonState extends State<_FlashToggleButton> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+class _ModeToggle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<ScanningBloc>().state;
+    final selected = {state.mode};
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+      child: SegmentedButton<ScanMode>(
+        segments: const [
+          ButtonSegment(
+            value: ScanMode.ingredients,
+            label: Text('Text'),
+            icon: Icon(Icons.text_fields),
+          ),
+          ButtonSegment(
+            value: ScanMode.barcode,
+            label: Text('Barcode'),
+            icon: Icon(Icons.qr_code_scanner),
+          ),
+        ],
+        selected: selected,
+        showSelectedIcon: false,
+        onSelectionChanged: (values) {
+          final mode = values.first;
+          context.read<ScanningBloc>().add(ScanningModeChanged(mode));
+        },
+      ),
+    );
+  }
+}
+
+class _BarcodeSingleShotButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<ScanningBloc>().state;
+    if (state.mode != ScanMode.barcode) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: 'Snap barcode (single-shot)',
+      icon: const Icon(Icons.camera),
+      onPressed: () async {
+        final scanner = getIt<ScannerService>();
+        final path = await scanner.captureStill();
+        try {
+          // Ensure preview resumes for continuity.
+          await scanner.resume();
+        } catch (_) {}
+        if (path == null) return;
+        final barcodeService = getIt<BarcodeScannerService>();
+        final code = await barcodeService.detectBarcodeFromFile(path);
+        if (code == null) return;
+        final repo = getIt<BarcodeRepository>();
+        final product = await repo.fetchOffProduct(code);
+        if (!context.mounted) return;
+        context.read<ScanningBloc>().add(
+              ScanningBarcodeProductReceived(
+                barcode: code,
+                productName: product?.productName,
+                imageUrl: product?.imageUrl,
+                lastUpdated: product?.lastUpdated,
+                ingredients: product?.ingredients,
+                ingredientsText: product?.ingredientsText,
+              ),
+            );
+      },
+    );
   }
 }
 
@@ -543,5 +631,85 @@ class _OcrDebugPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _BarcodeOverlay extends StatefulWidget {
+  @override
+  State<_BarcodeOverlay> createState() => _BarcodeOverlayState();
+}
+
+class _BarcodeOverlayState extends State<_BarcodeOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        // Define a centered 3:4 box taking ~70% width.
+        final boxWidth = width * 0.8;
+        final boxHeight = boxWidth * 0.6; // wide scan box
+        final left = (width - boxWidth) / 2;
+        final top = (height - boxHeight) / 2;
+        final rect = Rect.fromLTWH(left, top, boxWidth, boxHeight);
+        return AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) => CustomPaint(
+            painter: _BarcodeMaskPainter(rect: rect, t: _ctrl.value),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BarcodeMaskPainter extends CustomPainter {
+  _BarcodeMaskPainter({required this.rect, required this.t});
+  final Rect rect;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final overlay = Paint()..color = const Color(0xAA000000);
+    final clear = Paint()..blendMode = BlendMode.clear;
+    final border = Paint()
+      ..color = Colors.white70
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    // Darken everything
+    canvas.drawRect(Offset.zero & size, overlay);
+    // Clear scan box area
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
+    canvas.drawRRect(rrect, clear);
+    // Draw border
+    canvas.drawRRect(rrect, border);
+    // Animated scan line
+    final y = rect.top + rect.height * t;
+    final line = Paint()
+      ..color = Colors.greenAccent
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(rect.left + 8, y), Offset(rect.right - 8, y), line);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BarcodeMaskPainter oldDelegate) {
+    return oldDelegate.t != t || oldDelegate.rect != rect;
   }
 }
