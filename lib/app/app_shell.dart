@@ -51,12 +51,22 @@ class _AppShellState extends State<AppShell> {
         body: IndexedStack(
           index: _index,
           children: [
-            _TabNavigator(key: _navKeys[0], child: const ScanningPage()),
-            _TabNavigator(key: _navKeys[1], child: const HistoryPage()),
-            _TabNavigator(key: _navKeys[2], child: const SettingsPage()),
+            Semantics(
+              label: 'Scan tab',
+              child: _TabNavigator(key: _navKeys[0], child: const ScanningPage()),
+            ),
+            Semantics(
+              label: 'History tab',
+              child: _TabNavigator(key: _navKeys[1], child: const HistoryPage()),
+            ),
+            Semantics(
+              label: 'Settings tab',
+              child: _TabNavigator(key: _navKeys[2], child: const SettingsPage()),
+            ),
           ],
         ),
         bottomNavigationBar: NavigationBar(
+          height: 64, // ~20% smaller than default
           selectedIndex: _index,
           destinations: const [
             NavigationDestination(

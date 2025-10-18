@@ -152,8 +152,22 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
                   Stack(
                     children: [
                       _CameraPreviewArea(scannerService: scannerService, status: state.status),
-                      if (state.mode == ScanMode.barcode)
-                        Positioned.fill(child: _BarcodeOverlay()),
+                      // Accessibility: announce mode change and overlay.
+                      Semantics(
+                        container: true,
+                        label: state.mode == ScanMode.barcode
+                            ? 'Barcode scanning active. Align barcode in the box.'
+                            : 'Text scanning active.',
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                          child: state.mode == ScanMode.barcode
+                              ? const _BarcodeOverlay(key: ValueKey('barcodeOverlay'))
+                              : const SizedBox.shrink(key: ValueKey('noOverlay')),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -635,6 +649,7 @@ class _OcrDebugPanel extends StatelessWidget {
 }
 
 class _BarcodeOverlay extends StatefulWidget {
+  const _BarcodeOverlay({super.key});
   @override
   State<_BarcodeOverlay> createState() => _BarcodeOverlayState();
 }
@@ -659,23 +674,27 @@ class _BarcodeOverlayState extends State<_BarcodeOverlay>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-        // Define a centered 3:4 box taking ~70% width.
-        final boxWidth = width * 0.8;
-        final boxHeight = boxWidth * 0.6; // wide scan box
-        final left = (width - boxWidth) / 2;
-        final top = (height - boxHeight) / 2;
-        final rect = Rect.fromLTWH(left, top, boxWidth, boxHeight);
-        return AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, __) => CustomPaint(
-            painter: _BarcodeMaskPainter(rect: rect, t: _ctrl.value),
-          ),
-        );
-      },
+    return Semantics(
+      container: true,
+      label: 'Barcode scan area',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+          // Define a centered box; wide orientation works well for 1D codes.
+          final boxWidth = width * 0.8;
+          final boxHeight = boxWidth * 0.6;
+          final left = (width - boxWidth) / 2;
+          final top = (height - boxHeight) / 2;
+          final rect = Rect.fromLTWH(left, top, boxWidth, boxHeight);
+          return AnimatedBuilder(
+            animation: _ctrl,
+            builder: (_, __) => CustomPaint(
+              painter: _BarcodeMaskPainter(rect: rect, t: _ctrl.value),
+            ),
+          );
+        },
+      ),
     );
   }
 }
