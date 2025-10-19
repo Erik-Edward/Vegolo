@@ -128,10 +128,26 @@ class ModelManager {
       final modelPath = artifacts.modelPath;
       final tokenizerPath = artifacts.tokenizerPath;
 
+      final loadStopwatch = Stopwatch()..start();
       await _runtimeChannel.loadVariant(
         variant: variant,
         modelPath: modelPath,
         tokenizerPath: tokenizerPath,
+        options: {
+          'maxTokens': variantManifest.maxSequenceLength,
+          'defaultTimeoutMs': 250,
+          'numThreads': 4,
+          'topK': 40,
+          'topP': 0.9,
+          'temperature': 0.6,
+        },
+      );
+      debugPrint(
+        'Gemma variant ${variant.manifestId} loaded in '
+        '${loadStopwatch.elapsedMilliseconds} ms '
+        '(model=${variantManifest.displayName}, '
+        'quant=${variantManifest.quantization}, '
+        'threads=4)',
       );
 
       _activeVariant = variant;
@@ -159,6 +175,36 @@ class ModelManager {
     // TODO(ai-phase-2): Optionally run a startup prompt via generate() to
     // prime the interpreter and kv-cache.
     await _runtimeChannel.status();
+
+    final stopwatch = Stopwatch()..start();
+    try {
+      final stream = _runtimeChannel.streamGenerate(
+        const GemmaGenerateRequest(
+          prompt: 'Warm-up ping for Vegolo Gemma runtime.',
+          maxTokens: 1,
+          temperature: 0.0,
+          topP: 0.8,
+          topK: 1,
+          randomSeed: 0,
+          timeoutMillis: 200,
+        ),
+      );
+
+      await for (final chunk in stream) {
+        if (chunk.isFinal) {
+          final warmLatency = chunk.latencyMs ?? stopwatch.elapsedMilliseconds;
+          debugPrint(
+            'Model warm-up complete (ttft=${chunk.ttftMs}, latency=$warmLatency ms)',
+          );
+        }
+      }
+    } on TimeoutException {
+      debugPrint(
+        'Model warm-up timed out after ${stopwatch.elapsedMilliseconds} ms',
+      );
+    } catch (error) {
+      debugPrint('Model warm-up failed: $error');
+    }
 
     _isWarm = true;
   }

@@ -22,7 +22,8 @@ class ScanningPage extends StatefulWidget {
   State<ScanningPage> createState() => _ScanningPageState();
 }
 
-class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver {
+class _ScanningPageState extends State<ScanningPage>
+    with WidgetsBindingObserver {
   bool _showOcrOverlay = false;
 
   @override
@@ -71,15 +72,17 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
             onSelected: (value) async {
               if (value == 'history') {
                 // Handled by FAB too; kept here for convenience.
-                if (!mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const HistoryPage()),
-                );
-              } else if (value == 'seed') {
+                if (!context.mounted) return;
+                await Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const HistoryPage()));
+                return;
+              }
+              if (value == 'seed') {
                 // Best-effort refresh of ingredient seed
                 try {
                   await getIt<IngredientSeedLoader>().refreshSeed();
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Ingredient seed refreshed')),
                   );
@@ -87,7 +90,10 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
               }
             },
             itemBuilder: (context) => const [
-              PopupMenuItem(value: 'seed', child: Text('Refresh ingredient seed')),
+              PopupMenuItem(
+                value: 'seed',
+                child: Text('Refresh ingredient seed'),
+              ),
             ],
           ),
         ],
@@ -99,9 +105,7 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         listener: (context, state) async {
           final entry = state.pendingDetailEntry!;
           await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => HistoryDetailPage(entry: entry),
-            ),
+            MaterialPageRoute(builder: (_) => HistoryDetailPage(entry: entry)),
           );
           if (context.mounted) {
             context.read<ScanningBloc>().add(const ScanningDetailShown());
@@ -109,177 +113,198 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         },
         child: BlocBuilder<ScanningBloc, ScanningState>(
           builder: (context, state) {
-          final bloc = context.read<ScanningBloc>();
-          final (color, statusLabel) = _statusVisuals(state.status);
-          final scannerService = getIt<ScannerService>();
-          final detectedText = state.ocrResult?.fullText.trim();
-          final analysis = state.analysis;
-          final subtitle =
-              state.errorMessage ??
-              switch (true) {
-                _ when state.permanentlyDenied == true =>
-                  'Enable camera permissions in settings to resume scanning.',
-                _ when state.permissionDenied == true =>
-                  'Camera access is required for scanning.',
-                _ when analysis != null =>
-                  analysis.isVegan
-                      ? 'Likely vegan (rule-based)'
-                      : 'Potentially non-vegan',
-                _ when detectedText != null && detectedText.isNotEmpty =>
-                  'Detected text: $detectedText',
-                _ => _statusSubtitle(state.status),
-              };
+            final bloc = context.read<ScanningBloc>();
+            final (color, statusLabel) = _statusVisuals(state.status);
+            final scannerService = getIt<ScannerService>();
+            final detectedText = state.ocrResult?.fullText.trim();
+            final analysis = state.analysis;
+            final subtitle =
+                state.errorMessage ??
+                switch (true) {
+                  _ when state.permanentlyDenied == true =>
+                    'Enable camera permissions in settings to resume scanning.',
+                  _ when state.permissionDenied == true =>
+                    'Camera access is required for scanning.',
+                  _ when analysis != null =>
+                    analysis.isVegan
+                        ? 'Likely vegan (rule-based)'
+                        : 'Potentially non-vegan',
+                  _ when detectedText != null && detectedText.isNotEmpty =>
+                    'Detected text: $detectedText',
+                  _ => _statusSubtitle(state.status),
+                };
 
-          final (primaryLabel, primaryAction) = _primaryAction(
-            state.status,
-            state.mode,
-            bloc,
-          );
-          final bool showStopButton = (state.mode != ScanMode.barcode) && switch (state.status) {
-            ScanningStatus.idle || ScanningStatus.failure => false,
-            ScanningStatus.initializing => false,
-            _ => true,
-          };
-          final showSettingsButton = state.permanentlyDenied == true;
+            final (primaryLabel, primaryAction) = _primaryAction(
+              state.status,
+              state.mode,
+              bloc,
+            );
+            final bool showStopButton =
+                (state.mode != ScanMode.barcode) &&
+                switch (state.status) {
+                  ScanningStatus.idle || ScanningStatus.failure => false,
+                  ScanningStatus.initializing => false,
+                  _ => true,
+                };
+            final showSettingsButton = state.permanentlyDenied == true;
 
             return SafeArea(
               child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Camera preview area
-                  Stack(
-                    children: [
-                      _CameraPreviewArea(scannerService: scannerService, status: state.status),
-                      // Accessibility: announce mode change and overlay.
-                      Semantics(
-                        container: true,
-                        label: state.mode == ScanMode.barcode
-                            ? 'Barcode scanning active. Align barcode in the box.'
-                            : 'Text scanning active.',
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
-                          child: state.mode == ScanMode.barcode
-                              ? const _BarcodeOverlay(key: ValueKey('barcodeOverlay'))
-                              : const SizedBox.shrink(key: ValueKey('noOverlay')),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Camera preview area
+                    Stack(
+                      children: [
+                        _CameraPreviewArea(
+                          scannerService: scannerService,
+                          status: state.status,
+                        ),
+                        // Accessibility: announce mode change and overlay.
+                        Semantics(
+                          container: true,
+                          label: state.mode == ScanMode.barcode
+                              ? 'Barcode scanning active. Align barcode in the box.'
+                              : 'Text scanning active.',
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            transitionBuilder: (child, anim) =>
+                                FadeTransition(opacity: anim, child: child),
+                            child: state.mode == ScanMode.barcode
+                                ? const _BarcodeOverlay(
+                                    key: ValueKey('barcodeOverlay'),
+                                  )
+                                : const SizedBox.shrink(
+                                    key: ValueKey('noOverlay'),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ChameleonMascot(statusColor: color),
+                    const SizedBox(height: 16),
+                    ScanResultCard(
+                      title: statusLabel,
+                      subtitle: subtitle,
+                      trailing: Icon(_statusIcon(state.status), color: color),
+                    ),
+                    if (state.aiInFlight ||
+                        state.aiPartialResponse != null ||
+                        state.aiFinishReason != null) ...[
+                      const SizedBox(height: 12),
+                      _AiProgressIndicator(
+                        inFlight: state.aiInFlight,
+                        partial: state.aiPartialResponse,
+                        ttftMs: state.aiTtftMs,
+                        latencyMs: state.aiLatencyMs,
+                        finishReason: state.aiFinishReason,
+                        onCancel: state.aiInFlight
+                            ? () => bloc.add(const ScanningAiCancelRequested())
+                            : null,
+                      ),
+                    ],
+                    if (state.barcode != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Chip(
+                              label: const Text('OFF'),
+                              avatar: const Icon(Icons.inventory_2, size: 16),
+                            ),
+                            if (state.productName != null)
+                              Text(
+                                state.productName!,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            if (state.offLastUpdated != null)
+                              Text(
+                                'Last updated: '
+                                '${state.offLastUpdated!.toLocal().toIso8601String().split('T').first}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Unofficial info. Double-check label if unsure.',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: Colors.black54),
+                            ),
+                            if ((state.offIngredients == null ||
+                                    state.offIngredients!.isEmpty) &&
+                                (state.offIngredientsText == null ||
+                                    state.offIngredientsText!.trim().isEmpty))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'Ingredients unavailable on OFF for this product.',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(color: Colors.black54),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  ChameleonMascot(statusColor: color),
-                  const SizedBox(height: 16),
-                  ScanResultCard(
-                    title: statusLabel,
-                    subtitle: subtitle,
-                    trailing: Icon(_statusIcon(state.status), color: color),
-                  ),
-                  if (state.barcode != null) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Wrap(
-                        spacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Chip(
-                            label: const Text('OFF'),
-                            avatar: const Icon(Icons.inventory_2, size: 16),
-                          ),
-                          if (state.productName != null)
-                            Text(
-                              state.productName!,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          if (state.offLastUpdated != null)
-                            Text(
-                              'Last updated: '
-                              '${state.offLastUpdated!.toLocal().toIso8601String().split('T').first}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Unofficial info. Double-check label if unsure.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: Colors.black54),
-                          ),
-                          if ((state.offIngredients == null ||
-                                  state.offIngredients!.isEmpty) &&
-                              (state.offIngredientsText == null ||
-                                  state.offIngredientsText!.trim().isEmpty))
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                'Ingredients unavailable on OFF for this product.',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(color: Colors.black54),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (_showOcrOverlay) ...[
-                    const SizedBox(height: 8),
-                    _OcrDebugPanel(text: detectedText ?? ''),
-                  ],
-                  if (analysis != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Confidence: ${(analysis.confidence * 100).toStringAsFixed(0)}%',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    if (analysis.flaggedIngredients.isNotEmpty)
+                    if (_showOcrOverlay) ...[
+                      const SizedBox(height: 8),
+                      _OcrDebugPanel(text: detectedText ?? ''),
+                    ],
+                    if (analysis != null) ...[
+                      const SizedBox(height: 16),
                       Text(
-                        'Flagged: ${analysis.flaggedIngredients.join(', ')}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        'Confidence: ${(analysis.confidence * 100).toStringAsFixed(0)}%',
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      if (analysis.flaggedIngredients.isNotEmpty)
+                        Text(
+                          'Flagged: ${analysis.flaggedIngredients.join(', ')}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                    const SizedBox(height: 24),
+                    if (primaryAction != null)
+                      FilledButton(
+                        onPressed: primaryAction,
+                        child: Text(primaryLabel),
+                      )
+                    else
+                      FilledButton.tonal(
+                        onPressed: null,
+                        child: Text(primaryLabel),
+                      ),
+                    if (showStopButton) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => bloc.add(const ScanningStopped()),
+                        child: const Text('Stop scanning'),
+                      ),
+                    ],
+                    if (showSettingsButton) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () =>
+                            bloc.add(const ScanningOpenSettingsRequested()),
+                        child: const Text('Open settings'),
+                      ),
+                    ],
                   ],
-                  const SizedBox(height: 24),
-                  if (primaryAction != null)
-                    FilledButton(
-                      onPressed: primaryAction,
-                      child: Text(primaryLabel),
-                    )
-                  else
-                    FilledButton.tonal(
-                      onPressed: null,
-                      child: Text(primaryLabel),
-                    ),
-                  if (showStopButton) ...[
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => bloc.add(const ScanningStopped()),
-                      child: const Text('Stop scanning'),
-                    ),
-                  ],
-                  if (showSettingsButton) ...[
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () =>
-                          bloc.add(const ScanningOpenSettingsRequested()),
-                      child: const Text('Open settings'),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
             );
           },
         ),
@@ -320,12 +345,10 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
         () => bloc.add(const ScanningStarted()),
       ),
       ScanningStatus.initializing => ('Initializing…', null),
-      ScanningStatus.scanning || ScanningStatus.success => mode == ScanMode.barcode
-          ? ('Scanning…', null)
-          : (
-              'Pause scanning',
-              () => bloc.add(const ScanningPaused()),
-            ),
+      ScanningStatus.scanning || ScanningStatus.success =>
+        mode == ScanMode.barcode
+            ? ('Scanning…', null)
+            : ('Pause scanning', () => bloc.add(const ScanningPaused())),
       ScanningStatus.paused => (
         'Resume scanning',
         () => bloc.add(const ScanningResumed()),
@@ -342,6 +365,92 @@ class _ScanningPageState extends State<ScanningPage> with WidgetsBindingObserver
       ScanningStatus.success => Icons.check_circle,
       ScanningStatus.failure => Icons.error,
     };
+  }
+}
+
+class _AiProgressIndicator extends StatelessWidget {
+  const _AiProgressIndicator({
+    required this.inFlight,
+    required this.partial,
+    required this.ttftMs,
+    required this.latencyMs,
+    required this.finishReason,
+    this.onCancel,
+  });
+
+  final bool inFlight;
+  final String? partial;
+  final int? ttftMs;
+  final int? latencyMs;
+  final String? finishReason;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final telemetryParts = <String>[];
+    if (ttftMs != null) {
+      telemetryParts.add('TTFT: $ttftMs ms');
+    }
+    if (latencyMs != null) {
+      telemetryParts.add('Latency: $latencyMs ms');
+    }
+    if (!inFlight && finishReason != null && finishReason!.isNotEmpty) {
+      telemetryParts.add('Reason: $finishReason');
+    }
+    final telemetry = telemetryParts.join(' • ');
+
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                if (inFlight)
+                  const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    finishReason == 'cancelled'
+                        ? Icons.stop_circle
+                        : Icons.analytics,
+                    color: theme.colorScheme.primary,
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  inFlight ? 'Gemma analyzing…' : 'Gemma analysis complete',
+                  style: theme.textTheme.labelLarge,
+                ),
+                if (onCancel != null) ...[
+                  const Spacer(),
+                  TextButton(onPressed: onCancel, child: const Text('Cancel')),
+                ],
+              ],
+            ),
+            if (partial != null && partial!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(partial!, style: theme.textTheme.bodySmall),
+            ],
+            if (telemetry.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                telemetry,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -407,9 +516,9 @@ class _FlashToggleButtonState extends State<_FlashToggleButton> {
       setState(() => _mode = next);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Flash not supported: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Flash not supported: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -471,15 +580,15 @@ class _BarcodeSingleShotButton extends StatelessWidget {
         final product = await repo.fetchOffProduct(code);
         if (!context.mounted) return;
         context.read<ScanningBloc>().add(
-              ScanningBarcodeProductReceived(
-                barcode: code,
-                productName: product?.productName,
-                imageUrl: product?.imageUrl,
-                lastUpdated: product?.lastUpdated,
-                ingredients: product?.ingredients,
-                ingredientsText: product?.ingredientsText,
-              ),
-            );
+          ScanningBarcodeProductReceived(
+            barcode: code,
+            productName: product?.productName,
+            imageUrl: product?.imageUrl,
+            lastUpdated: product?.lastUpdated,
+            ingredients: product?.ingredients,
+            ingredientsText: product?.ingredientsText,
+          ),
+        );
       },
     );
   }
@@ -504,7 +613,8 @@ class _CameraPreviewAreaState extends State<_CameraPreviewArea> {
 
   @override
   Widget build(BuildContext context) {
-    final CameraController? controller = widget.scannerService.previewController;
+    final CameraController? controller =
+        widget.scannerService.previewController;
     final bool ready = controller != null && controller.value.isInitialized;
 
     Widget content;
@@ -548,8 +658,9 @@ class _CameraPreviewAreaState extends State<_CameraPreviewArea> {
                   _lastTapPos = local;
                   _lastTapAt = DateTime.now();
                 });
-                await widget.scannerService
-                    .setFocusAndExposurePoint(Offset(nx, ny));
+                await widget.scannerService.setFocusAndExposurePoint(
+                  Offset(nx, ny),
+                );
               },
             ),
             if (_lastTapPos != null && _recentTap)
@@ -627,14 +738,13 @@ class _OcrDebugPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DefaultTextStyle(
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall!
-            .copyWith(fontFamily: 'monospace'),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall!.copyWith(fontFamily: 'monospace'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/features/history/data/models/scan_history_entry_model.dart';
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart';
 import 'package:vegolo/features/history/data/thumbnail_generator.dart';
@@ -12,7 +13,10 @@ import 'package:vegolo/features/settings/domain/repositories/settings_repository
 
 class _FakeThumbnailGenerator extends ThumbnailGenerator {
   @override
-  Future<Uint8List> createThumbnail(Uint8List sourceBytes, {int maxDimension = 200}) async {
+  Future<Uint8List> createThumbnail(
+    Uint8List sourceBytes, {
+    int maxDimension = 200,
+  }) async {
     return Uint8List.fromList([1, 2, 3]);
   }
 
@@ -61,6 +65,7 @@ class _InMemoryHistoryDataSource implements ScanHistoryLocalDataSource {
 class _FakeSettingsRepository implements SettingsRepository {
   _FakeSettingsRepository(this._saveFull);
   bool _saveFull;
+  GemmaGenerationOptions _options = GemmaGenerationOptions.defaults;
 
   @override
   Future<bool> getSaveFullImages() async => _saveFull;
@@ -75,6 +80,14 @@ class _FakeSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> setAiAnalysisEnabled(bool value) async {}
+
+  @override
+  Future<GemmaGenerationOptions> getGemmaGenerationOptions() async => _options;
+
+  @override
+  Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
+    _options = value;
+  }
 }
 
 void main() {
@@ -104,7 +117,11 @@ void main() {
     await repo.saveEntry(entry);
 
     // Assert
-    expect(await full.exists(), isFalse, reason: 'full image should be deleted');
+    expect(
+      await full.exists(),
+      isFalse,
+      reason: 'full image should be deleted',
+    );
   });
 
   test('keeps full image when saveFullImages is enabled', () async {

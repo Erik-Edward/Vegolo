@@ -257,7 +257,7 @@ Including a product image in history greatly improves user experience by making 
 - Build text normalization pipeline.
 - Prototype ≤300 MB model; measure load + inference.
 
-### Phase 1 — MVP (Current Focus)
+### Phase 1 — MVP 
 - Flutter app skeleton (Material 3).
 - Camera integration + real‑time preview.
 - ML Kit OCR.
@@ -266,7 +266,7 @@ Including a product image in history greatly improves user experience by making 
 - **Scan history with compressed thumbnails**.
 - Basic UI with instant visual feedback.
 
-### Phase 2 — AI Integration
+### Phase 2 — AI Integration (Current Focus)
 - Integrate Gemma 3n via TFLite/Core ML (multi‑variant models).
 - Multimodal (image + text) reasoning.
 - Extended DB (5 000+ ingredients).

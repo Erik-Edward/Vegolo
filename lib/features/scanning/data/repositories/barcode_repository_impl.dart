@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
@@ -50,7 +49,7 @@ class BarcodeRepositoryImpl implements BarcodeRepository {
 class _LruCache<K, V> {
   _LruCache(this._capacity);
   final int _capacity;
-  final _map = LinkedHashMap<K, V>();
+  final _map = <K, V>{};
 
   V? get(K key) {
     final v = _map.remove(key);

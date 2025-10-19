@@ -16,4 +16,3 @@ void main() {
     expect(norm.contains('—'), isFalse);
   });
 }
-

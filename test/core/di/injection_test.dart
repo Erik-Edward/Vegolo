@@ -5,6 +5,7 @@ import 'package:vegolo/core/ai/model_manager.dart';
 import 'package:vegolo/core/camera/ocr_processor.dart';
 import 'package:vegolo/core/camera/scanner_service.dart';
 import 'package:vegolo/core/di/injection.dart';
+import 'package:vegolo/core/telemetry/telemetry_service.dart';
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart';
 import 'package:vegolo/features/history/domain/repositories/scan_history_repository.dart';
 import 'package:vegolo/features/ingredients/data/repositories/ingredient_repository_impl.dart';
@@ -29,6 +30,7 @@ void main() {
 
     expect(getIt.isRegistered<GemmaService>(), isTrue);
     expect(getIt.isRegistered<ModelManager>(), isTrue);
+    expect(getIt.isRegistered<TelemetryService>(), isTrue);
     expect(getIt<ScannerService>(), isA<CameraScannerService>());
     expect(getIt<OcrProcessor>(), isA<MlKitOcrProcessor>());
     expect(getIt<ScanHistoryRepository>(), isA<ScanHistoryRepositoryImpl>());

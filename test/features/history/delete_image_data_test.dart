@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/core/database/scan_history_local_data_source.dart';
 import 'package:vegolo/features/history/data/models/scan_history_entry_model.dart';
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart';
@@ -16,18 +17,23 @@ class _DS implements ScanHistoryLocalDataSource {
   @override
   Future<void> deleteById(String id) async => _m.remove(id);
   @override
-  Future<List<ScanHistoryEntryModel>> getAllEntries() async => _m.values.toList();
+  Future<List<ScanHistoryEntryModel>> getAllEntries() async =>
+      _m.values.toList();
   @override
   Future<ScanHistoryEntryModel?> getById(String id) async => _m[id];
   @override
-  Future<void> insertEntry(ScanHistoryEntryModel entry) async => _m[entry.id] = entry;
+  Future<void> insertEntry(ScanHistoryEntryModel entry) async =>
+      _m[entry.id] = entry;
   @override
-  Stream<List<ScanHistoryEntryModel>> watchEntries() async* { yield _m.values.toList(); }
+  Stream<List<ScanHistoryEntryModel>> watchEntries() async* {
+    yield _m.values.toList();
+  }
 }
 
 class _TG extends ThumbnailGenerator {}
 
 class _Settings implements SettingsRepository {
+  GemmaGenerationOptions _options = GemmaGenerationOptions.defaults;
   @override
   Future<bool> getSaveFullImages() async => false;
   @override
@@ -36,6 +42,12 @@ class _Settings implements SettingsRepository {
   Future<bool> getAiAnalysisEnabled() async => false;
   @override
   Future<void> setAiAnalysisEnabled(bool value) async {}
+  @override
+  Future<GemmaGenerationOptions> getGemmaGenerationOptions() async => _options;
+  @override
+  Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
+    _options = value;
+  }
 }
 
 void main() {

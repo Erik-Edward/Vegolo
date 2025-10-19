@@ -19,11 +19,17 @@ class PerformScanAnalysis {
   final SettingsRepository _settingsRepository;
   final AiAnalysisConfig _config = const AiAnalysisConfig();
 
-  Future<VeganAnalysis> call(OcrResult result) async {
+  Future<VeganAnalysis> call(
+    OcrResult result, {
+    void Function(GemmaAnalysisProgress progress)? onAiProgress,
+  }) async {
     final ruleAnalysis = await _ruleBasedAnalyzer.analyze(result);
 
     final aiEnabled =
-        _config.aiEnabledOverride ?? await _settingsRepository.getAiAnalysisEnabled();
+        _config.aiEnabledOverride ??
+        await _settingsRepository.getAiAnalysisEnabled();
+    final generationOptions = await _settingsRepository
+        .getGemmaGenerationOptions();
 
     if (!aiEnabled) {
       return ruleAnalysis;
@@ -36,6 +42,8 @@ class PerformScanAnalysis {
     final aiAnalysis = await _gemmaService.analyze(
       ocrTextLines: _extractLines(result),
       timeout: _config.aiTimeout,
+      generationOptions: generationOptions,
+      onProgress: onAiProgress,
     );
 
     if (aiAnalysis == null) {
@@ -79,6 +87,8 @@ class PerformScanAnalysis {
       alternatives: mergedAlternatives,
     );
   }
+
+  Future<void> cancelAi() => _gemmaService.cancelActiveAnalysis();
 }
 
 class AiAnalysisConfig {

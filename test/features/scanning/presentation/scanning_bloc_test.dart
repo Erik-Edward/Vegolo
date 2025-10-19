@@ -11,6 +11,7 @@ import 'package:vegolo/core/camera/scanner_service.dart';
 import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
 import 'package:vegolo/features/scanning/presentation/bloc/scanning_bloc.dart';
+import 'package:vegolo/core/ai/gemma_service.dart';
 
 class _MockScannerService extends Mock implements ScannerService {}
 
@@ -41,6 +42,10 @@ class _ScannerFrameFake extends Fake implements ScannerFrame {
   int? get bytesPerRow => 0;
 }
 
+class _FakeProgressCallback extends Fake {
+  void call(GemmaAnalysisProgress progress) {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -58,6 +63,7 @@ void main() {
     registerFallbackValue(
       OcrResult(fullText: '', blocks: const [], frame: _ScannerFrameFake()),
     );
+    registerFallbackValue(_FakeProgressCallback());
   });
 
   setUp(() {
@@ -88,9 +94,13 @@ void main() {
         frame: frame,
       );
     });
-    when(() => performScanAnalysis(any())).thenAnswer((_) async {
+    when(
+      () =>
+          performScanAnalysis(any(), onAiProgress: any(named: 'onAiProgress')),
+    ).thenAnswer((_) async {
       return const VeganAnalysis(isVegan: true, confidence: 0.8);
     });
+    when(() => performScanAnalysis.cancelAi()).thenAnswer((_) async {});
 
     bloc = ScanningBloc(
       scannerService: scannerService,
@@ -128,7 +138,10 @@ void main() {
     expect(bloc.state.latestFrame, equals(frame));
     expect(bloc.state.ocrResult?.fullText, 'detected text');
     verify(() => ocrProcessor.processFrame(frame)).called(1);
-    verify(() => performScanAnalysis(any())).called(1);
+    verify(
+      () =>
+          performScanAnalysis(any(), onAiProgress: any(named: 'onAiProgress')),
+    ).called(1);
     expect(bloc.state.analysis?.isVegan, isTrue);
   });
 
@@ -157,30 +170,38 @@ void main() {
     expect(bloc.state.analysis, isNull);
   });
 
-  test('keeps scanning and surfaces soft error when OCR processing throws', () async {
-    when(
-      () => ocrProcessor.processFrame(any()),
-    ).thenThrow(Exception('ocr failed'));
+  test(
+    'keeps scanning and surfaces soft error when OCR processing throws',
+    () async {
+      when(
+        () => ocrProcessor.processFrame(any()),
+      ).thenThrow(Exception('ocr failed'));
 
-    bloc.add(const ScanningStarted());
-    await pumpEventQueue();
+      bloc.add(const ScanningStarted());
+      await pumpEventQueue();
 
-    frameController.add(
-      ScannerFrame(
-        bytes: Uint8List.fromList([1]),
-        timestamp: DateTime.now(),
-        width: 1,
-        height: 1,
-        bytesPerRow: 1,
-      ),
-    );
-    await pumpEventQueue();
+      frameController.add(
+        ScannerFrame(
+          bytes: Uint8List.fromList([1]),
+          timestamp: DateTime.now(),
+          width: 1,
+          height: 1,
+          bytesPerRow: 1,
+        ),
+      );
+      await pumpEventQueue();
 
-    expect(bloc.state.status, ScanningStatus.scanning);
-    expect(bloc.state.errorMessage, contains('Uncertain'));
-    expect(bloc.state.analysis, isNull);
-    verifyNever(() => performScanAnalysis(any()));
-  });
+      expect(bloc.state.status, ScanningStatus.scanning);
+      expect(bloc.state.errorMessage, contains('Uncertain'));
+      expect(bloc.state.analysis, isNull);
+      verifyNever(
+        () => performScanAnalysis(
+          any(),
+          onAiProgress: any(named: 'onAiProgress'),
+        ),
+      );
+    },
+  );
 
   test('open settings event forwards to scanner service', () async {
     bloc.add(const ScanningOpenSettingsRequested());

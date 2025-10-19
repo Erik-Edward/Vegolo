@@ -25,4 +25,3 @@ void main() {
     expect(domain.productName, 'Vegan Snack');
   });
 }
-

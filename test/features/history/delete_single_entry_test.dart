@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/features/history/data/models/scan_history_entry_model.dart';
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart';
 import 'package:vegolo/features/history/data/thumbnail_generator.dart';
@@ -21,19 +22,24 @@ class _LocalDs implements ScanHistoryLocalDataSource {
   Future<void> deleteById(String id) async => _map.remove(id);
 
   @override
-  Future<List<ScanHistoryEntryModel>> getAllEntries() async => _map.values.toList();
+  Future<List<ScanHistoryEntryModel>> getAllEntries() async =>
+      _map.values.toList();
 
   @override
   Future<ScanHistoryEntryModel?> getById(String id) async => _map[id];
 
   @override
-  Future<void> insertEntry(ScanHistoryEntryModel entry) async => _map[entry.id] = entry;
+  Future<void> insertEntry(ScanHistoryEntryModel entry) async =>
+      _map[entry.id] = entry;
 
   @override
-  Stream<List<ScanHistoryEntryModel>> watchEntries() async* { yield _map.values.toList(); }
+  Stream<List<ScanHistoryEntryModel>> watchEntries() async* {
+    yield _map.values.toList();
+  }
 }
 
 class _Settings implements SettingsRepository {
+  GemmaGenerationOptions _options = GemmaGenerationOptions.defaults;
   @override
   Future<bool> getSaveFullImages() async => false;
 
@@ -45,6 +51,14 @@ class _Settings implements SettingsRepository {
 
   @override
   Future<void> setAiAnalysisEnabled(bool value) async {}
+
+  @override
+  Future<GemmaGenerationOptions> getGemmaGenerationOptions() async => _options;
+
+  @override
+  Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
+    _options = value;
+  }
 }
 
 void main() {
@@ -56,7 +70,11 @@ void main() {
     await full.writeAsBytes([4, 5, 6]);
 
     final ds = _LocalDs();
-    final repo = ScanHistoryRepositoryImpl(_FakeThumbnailGenerator(), ds, _Settings());
+    final repo = ScanHistoryRepositoryImpl(
+      _FakeThumbnailGenerator(),
+      ds,
+      _Settings(),
+    );
 
     final entry = ScanHistoryEntry(
       id: 'id1',

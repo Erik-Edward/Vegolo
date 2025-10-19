@@ -1,6 +1,8 @@
-# Vegolo Implementation Status — Phase 1 (MVP)
+# Vegolo Implementation Status — Phase 1 (MVP) & Phase 2 (AI Integration)
 
-Scope: Camera + OCR + rule-based engine + history with thumbnails, barcode fallback, app shell/navigation.
+Scope to date:
+- **Phase 1 (MVP)**: Camera + OCR + rule-based engine + history with thumbnails, barcode fallback, app shell/navigation.
+- **Phase 2 (in-progress)**: Gemma 3n manifest + runtime integration, streaming bridge, configurable decode settings, legal notices.
 
 ## What’s Implemented
 
@@ -69,13 +71,45 @@ Scope: Camera + OCR + rule-based engine + history with thumbnails, barcode fallb
   - Implemented with OFF image/name and ingredients; Barcode mode uses OFF only (no OCR).
   - Auto‑stop on decode with automatic detail navigation; “Last updated” displayed.
 
-## Gaps vs. AGENTS.md
+## Phase 2 Progress (Gemma 3n Integration — Android)
 
-- AI Integration (Phase 2): Gemma 3n (TFLite/Core ML) not wired yet.
-- Performance: Frame policy present; consider more adaptive FPS and memory telemetry.
-- i18n/RTL, Lottie mascot animations, analytics, sync/backup (iCloud/Drive), export/import: not started.
-- Minor tech debt: replace `WillPopScope` with `PopScope`; address small analyzer hints; refine async context guards.
-  (PopScope done; remaining: analyzer hints, withOpacity deprecation.)
+- **Model manifest & delivery**
+  - `lib/core/ai/model_manifest.json` now targets Vegolo’s CDN mirrors for the LiteRT-LM bundles (E2B/E4B int4) with pinned per-file SHA-256 values.
+  - Unit-test fixture (`build/unit_test_assets/.../model_manifest.json`) kept in sync.
+  - Remaining TODO: once zipped CDN artefacts are finalised, run `dart tool/update_gemma_manifest.dart --nano <path> --standard <path> --full <path>` to backfill `archive_sha256` / `archive_size_bytes` in both manifest and docs.
+
+- **ModelManager runtime**
+  - Warm-load path now logs variant, quantisation, and load latency.
+  - Added streaming warm-up ping (TTFT telemetry) via `GemmaRuntimeChannel.streamGenerate`.
+
+- **Platform channel & runtime**
+  - `GemmaService.kt` upgraded to use `generateResponseAsync`, exposing partial-token streaming over `EventChannel` with cancellation, TTFT, and latency telemetry.
+  - Synchronous `generate` still available (wraps async call).
+
+- **Flutter bridge**
+  - `GemmaRuntimeChannel` now provides `streamGenerate` with cancellation + chunk metadata.
+  - `GemmaService.analyze` consumes streaming output, parses Gemma JSON into `VeganAnalysis`, logs TTFT/latency, and exposes progress callbacks.
+- **Telemetry**
+  - Added `TelemetryService` (default `DebugTelemetryService`) that logs structured Gemma inference metrics (status, TTFT, latency, finish reason).
+  - `GemmaService` records success, parse failure, timeout, and cancellation events so we can later swap in a production sink without touching call sites.
+
+- **User configuration & legal**
+  - Added `GemmaGenerationOptions` model, persisted via `SharedPrefsSettingsRepository`.
+  - Settings page now includes a “Gemma generation settings” sheet (max tokens, temp, top‑p, top‑k, deterministic seed) and a modal viewer for `GEMMA_LEGAL_NOTICES.txt`.
+  - `pubspec.yaml` updated to bundle the legal notice asset.
+
+- **Tests**
+  - Updated mocks/fakes for `SettingsRepository`.
+  - `PerformScanAnalysis` test suite now asserts generation options are passed through.
+  - `flutter test`, `dart analyze`, and `./gradlew app:assembleDebug` run clean (warnings only).
+
+## Gaps vs. AGENTS.md (current delta)
+
+- **AI response parsing**: ✅ Structured parser + unit tests added; follow up with on-device validation once Gemma responses are available.
+- **Archive metadata**: scripted (`tool/update_gemma_manifest.dart`) but still needs final checksum/size values once CDN uploads are available; add smoke test for `ModelManager` download/extract path.
+- **Telemetry sink**: ✅ Gemma stream data now flows through `TelemetryService`; next step is swapping the debug logger for the production analytics target and defining retention/PII guidance.
+- **Cross-platform**: Core ML integration, iOS delivery strategy, sync/backups, analytics, i18n/RTL, mascot animations remain outstanding (unchanged from prior plan).
+- **Tech debt**: analyzer hints (`withOpacity` deprecation, async context guards) still pending; consider addressing alongside UI work.
 
 ## Acceptance Criteria (Phase 1) — Current Status
 
@@ -101,7 +135,7 @@ Scope: Camera + OCR + rule-based engine + history with thumbnails, barcode fallb
 
 ## Phase 2 Preparation Summary
 
-- Documentation gathered in `docs/Gemma/` and `docs/Gemma3n/`:
+- Documentation gathered in `docs/Gemma/`:
   - Gemma 3/3n model overview, model card, technical report, implementation guide.
   - Tokenizer & prompt format, system instructions, formatter notes.
   - Conversion notebooks and guides (HF safetensors → LiteRT, LiteRT‑LM integration, ONNX path).
@@ -110,10 +144,10 @@ Scope: Camera + OCR + rule-based engine + history with thumbnails, barcode fallb
   - Core ML planning references (coremltools + ML Program overview for Gemma-scale models).
 
 - Outstanding artefacts / decisions before implementation:
-  - Acquire/verify Gemma 3n SentencePiece tokenizer files (.spm/.model) and confirm redistribution terms.
-  - Pin an official LiteRT‑LM sample repo (google-ai-edge / MediaPipe GenAI) with commit/date for reference implementation.
-  - Finalise model delivery strategy: Android (Play Asset Delivery vs Play for On-device AI) and iOS (On-Demand Resources/app thinning) with checksum workflow.
-  - Confirm Gemma 3/3n licensing/attribution text to surface in-app.
+  - ✅ Acquire/verify Gemma 3n SentencePiece tokenizer (hash pinned; legal notice bundled).
+  - ✅ Document licensing/attribution copy (Settings modal wired to `GEMMA_LEGAL_NOTICES.txt`).
+  - ⏳ CDN release checklist: archive-level checksum/size publication (automation available via `tool/update_gemma_manifest.dart`).
+  - ⏳ Reference LiteRT-LM sample commit & delivery strategy for iOS/Core ML parity.
 
 - With the above addressed, the team is ready to start **Phase 2 — AI Integration** (Android LiteRT‑LM text-only first, Core ML to follow).
 

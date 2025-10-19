@@ -14,67 +14,74 @@ This document tracks the Phase 2 scaffolding delivered in this iteration and rec
 {
   "schema_version": 1,
   "generated_at": "2024-10-01T00:00:00Z",
-  "artifacts_base_url": "https://download.example.com/vegolo/gemma3n/",
+  "artifacts_base_url": "https://cdn.vegolo.app/gemma3n/v1/",
   "variants": [
     {
       "id": "nano",
       "min_ram_gb": 3.0,
       "recommended_ram_gb": 4.0,
-      "quantization": "int8-dynamic",
+      "quantization": "int4",
+      "compression": "none",
       "archive_sha256": "TBD",
       "files": [
-        {"type": "model", "path": "gemma_3n/nano/gemma-3n-nano-int8.tflite"},
+        {"type": "model", "path": "models/gemma-3n-e2b-it-int4-web.litertlm"},
         {"type": "tokenizer", "path": "tokenizers/gemma-3n-tokenizer.model"}
       ]
     }
   ]
 }
 ```
-
-- TODO: replace `"TBD"` checksums, real sizes, and final CDN base URL once artifacts land.
+- The production manifest mirrors the official LiteRT-LM `.litertlm` payloads to Vegolo's CDN (`https://cdn.vegolo.app/gemma3n/v1/`) and pins their SHA-256 checksums. Nano targets the E2B `int4-web` build; Standard and Full consume the E4B `int4` variants.
+- Tokenizer delivery remains centralised: the shared SentencePiece model is validated once (checksum `ea5f0cc4…`) and copied into each variant directory after download.
+- Archive metadata is updated via `dart tool/update_gemma_manifest.dart`, which accepts the Nano/Standard/Full `.zip` artefacts, computes SHA-256 + sizes, and rewrites `lib/core/ai/model_manifest.json` alongside the documentation snippet in this file. Run with `--dry-run` to verify paths and checksums before committing.
 
 ## Model Lifecycle (Dart)
 
 - `ModelManager` orchestrates manifest caching, RAM-based variant selection, and native load/unload via `GemmaRuntimeChannel`.
 - Device RAM heuristics: highest variant whose `min_ram_gb` fits the reported RAM, fallback to smallest bundle when below min spec.
-- **Download + extraction implemented**:
-  - Models/tokenizer (or a zipped archive) are downloaded into
+- **Download + verification implemented**:
+  - `.litertlm` model bundles and the tokenizer are downloaded into
     `ApplicationSupportDirectory/vegolo/gemma3n/<variant>`.
   - SHA-256 and size are enforced against the manifest; digest sidecars
     (`*.sha256`) prevent repeated hashing.
-  - Archives (zip) are re-used via an `.archive_extracted` marker and are
-    extracted with path traversal protection.
+  - When a checksum fails, the manager re-downloads the artefact from the CDN
+    and refuses to load the model until verification succeeds.
 - The fully-qualified file paths are now cached for reuse by the tokenizer
   pipeline and surfaced via `activeModelPath` / `activeTokenizerPath`.
-- Still pending: KV-cache warm-up prompt (invoked through
-  `GemmaRuntimeChannel.generate`).
+- Warm-up now sends a 1-token streaming prompt to prime the interpreter and
+  logs TTFT/latency telemetry for visibility during development builds.
 
 ## Android LiteRT-LM Bridge
 
 - Channel: `vegolo/gemma`.
 - Methods:
   - `loadVariant(variantId, modelPath, tokenizerPath, options)` – validates
-    file existence and captures runtime preferences (threads, NNAPI, default
-    timeout). The interpreter is still stubbed but the contract is ready.
+    file existence, captures runtime preferences (threads, backend, default
+    timeout), and now instantiates the MediaPipe Tasks **LLM Inference** engine
+    (`com.google.mediapipe:tasks-genai:0.10.27`).
   - `unload()` – releases interpreter, clears caches.
   - `isReady()` – returns `{ loaded: bool, variantId: string? }`.
-  - `generate(prompt, maxTokens, timeoutMillis)` – runs on a single-thread
-    executor, returns latency, timeout, or error reasons; placeholder text is
-    still empty until LiteRT-LM wiring lands.
+  - `generate(prompt, maxTokens, timeoutMillis)` – now delegates to
+    `generateResponseAsync`, capturing TTFT and full latency metrics while
+    returning the concatenated response.
+  - `generateStream(streamId, prompt, …)` – starts streaming partial tokens over
+    an `EventChannel` (`vegolo/gemma_stream`) with delta updates, TTFT, and
+    final latency/finish reasons.
+  - `cancelStream(streamId)` – cancels the active decode, returning the partial
+    buffer with a `reason` of `cancelled`.
 - Telemetry: logcat (`VegoloGemmaService`) records load/unload requests,
-  requested paths, options, and per-inference latency. The skeleton already
-  handles request timeouts and non-fatal errors.
-- Pending: LiteRT-LM interpreter wiring (google-ai-edge/LiteRT-LM), delegate
-  selection (NNAPI vs CPU), KV cache priming, and streaming/token budget
-  enforcement.
+  requested paths, options, TTFT, and per-inference latency. Stream lifecycle
+  events log successes, timeouts, cancellations, and failures.
+- Per-call decode overrides (maxTokens, temperature, topK, topP, randomSeed)
+  are accepted from Flutter and applied to `LlmInferenceSessionOptions`.
 
 ## Tokenizer Pipeline
 
-- `createGemmaTokenizer` still returns a placeholder but now resolves the
-  tokenizer path emitted by `ModelManager`, i.e. the extracted
-  `tokenizers/gemma-3n-tokenizer.model` under the support directory.
-- TODO: confirm redistribution rights and delivery of Gemma 3n SentencePiece
-  model; add checksum to manifest once pinned.
+- `createGemmaTokenizer` resolves the tokenizer path emitted by `ModelManager`,
+  using the mirrored SentencePiece artefact once it has been verified against
+  the pinned checksum (`ea5f0cc4…`).
+- Redistribution requirements are documented in-app via the Settings → Gemma
+  legal notices sheet (see `GEMMA_LEGAL_NOTICES.txt`).
 
 ## Analysis Flow (`PerformScanAnalysis`)
 
@@ -83,6 +90,9 @@ This document tracks the Phase 2 scaffolding delivered in this iteration and rec
 - **Settings toggle implemented**: the AI path is gated by
   `SettingsRepository.getAiAnalysisEnabled()`. Users can control it from
   Settings → “Enable AI analysis (Gemma 3n)”.
+- Generation preferences (max tokens, temperature, topK/topP, optional seed)
+  live in Settings → “Gemma generation settings” and flow through
+  `PerformScanAnalysis` into the Dart ↔ Kotlin bridge for every request.
 - Fallback rules:
   - AI failure (`null` or `PlatformException`) keeps rule result intact.
   - AI success merges alternatives and flagged ingredients, preferring AI
@@ -101,9 +111,14 @@ This document tracks the Phase 2 scaffolding delivered in this iteration and rec
 - Dart-side logs surface through `debugPrint` for load contention and AI errors.
 - Android logcat (tag `VegoloGemmaService`) captures load/unload requests,
   options, requested paths, and per-inference latency/timeout/error reasons.
+- New `TelemetryService` abstraction (default `DebugTelemetryService`) records
+  Gemma inference outcomes (status, TTFT, latency, finish reason, response size)
+  so the sink can be swapped for production analytics without code churn.
 - Planned additions (Phase 2 follow-up):
-  1. Structured telemetry sink (e.g., `Timber` + logcat filters) for development builds.
-  2. Counters for rule-only fallback reasons (timeout, model not loaded, tokenizer missing).
+  1. Wire `TelemetryService` into the production analytics/metrics pipeline and
+     define retention/PII guidance.
+  2. Counters for rule-only fallback reasons (timeout, model not loaded,
+     tokenizer missing).
   3. Battery/RAM sampling hook before/after load to validate guardrails.
 
 ## Acceptance Fixtures (Planned)
@@ -117,10 +132,10 @@ Fixtures will live under `test/fixtures/gemma/` once tokenizer + runtime land; t
 
 ## Outstanding Items / Open Questions
 
-1. **Tokenizer artefact** – Need Gemma 3n `.spm`/`.model` file + redistribution clearance.
+1. **CDN mirroring** – Automate validation + promotion of new LiteRT-LM artefacts when Google refreshes Gemma 3n builds.
 2. **Reference LiteRT-LM sample** – Pin `google-ai-edge/MediaPipe GenAI` commit for inference scaffolding and delegate configuration guidance.
 3. **Model delivery** – Decide between Play Asset Delivery vs. Play for On-device AI for Android; define checksum workflow and retention policy. Mirror plan for iOS ODR/app thinning.
-4. **License & attribution** – Finalize Gemma 3/3n licensing copy for settings/about screens.
+4. **Attribution automation** – Keep the in-app Gemma legal notice synced with upstream wording when Google updates the Terms or Prohibited Use policy.
 5. **RAM detection** – Source of truth for device RAM (Android: `ActivityManager.MemoryInfo`, iOS equivalent) to replace the current placeholder default.
 
 ---

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_at": "2024-10-01T00:00:00Z",
-  "artifacts_base_url": "https://download.example.com/vegolo/gemma3n/",
+  "artifacts_base_url": "https://cdn.vegolo.app/gemma3n/v1/",
   "variants": [
     {
       "id": "nano",
@@ -9,17 +9,18 @@
       "min_ram_gb": 3.0,
       "recommended_ram_gb": 4.0,
       "max_sequence_length": 2048,
-      "quantization": "int8-dynamic",
+      "quantization": "int4",
       "model_type": "litert-lm",
-      "compression": "zip",
+      "compression": "none",
       "archive_sha256": "TBD",
       "archive_size_bytes": 0,
+      "archive_path": "archives/gemma-3n-nano.zip",
       "files": [
         {
           "type": "model",
-          "path": "gemma_3n/nano/gemma-3n-nano-int8.tflite",
-          "sha256": "TBD",
-          "size_bytes": 0
+          "path": "models/gemma-3n-e2b-it-int4-web.litertlm",
+          "sha256": "b6c8e1081ec80730f14473a5ece941b48da5d8e2a80c97c2963da153f3eff3d2",
+          "size_bytes": 3038117888
         },
         {
           "type": "tokenizer",
@@ -35,17 +36,18 @@
       "min_ram_gb": 5.5,
       "recommended_ram_gb": 6.0,
       "max_sequence_length": 3072,
-      "quantization": "int8",
+      "quantization": "int4",
       "model_type": "litert-lm",
-      "compression": "zip",
+      "compression": "none",
       "archive_sha256": "TBD",
       "archive_size_bytes": 0,
+      "archive_path": "archives/gemma-3n-standard.zip",
       "files": [
         {
           "type": "model",
-          "path": "gemma_3n/standard/gemma-3n-standard-int8.tflite",
-          "sha256": "TBD",
-          "size_bytes": 0
+          "path": "models/gemma-3n-e4b-it-int4-web.litertlm",
+          "sha256": "63730ba3225a23a90d3292d89fdeff1a7537cedeb72aa687de9a35732d057e52",
+          "size_bytes": 4275044352
         },
         {
           "type": "tokenizer",
@@ -61,17 +63,18 @@
       "min_ram_gb": 7.5,
       "recommended_ram_gb": 8.0,
       "max_sequence_length": 4096,
-      "quantization": "int4-mixed",
+      "quantization": "int4",
       "model_type": "litert-lm",
-      "compression": "zip",
+      "compression": "none",
       "archive_sha256": "TBD",
       "archive_size_bytes": 0,
+      "archive_path": "archives/gemma-3n-full.zip",
       "files": [
         {
           "type": "model",
-          "path": "gemma_3n/full/gemma-3n-full-int4.tflite",
-          "sha256": "TBD",
-          "size_bytes": 0
+          "path": "models/gemma-3n-e4b-it-int4.litertlm",
+          "sha256": "510f7db80143308f788ded208784b6c8addabe4d465ca32fd5bd80fd43ed4dcb",
+          "size_bytes": 4652318720
         },
         {
           "type": "tokenizer",

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:vegolo/core/ai/gemma_service.dart';
+import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/core/camera/ocr_models.dart';
 import 'package:vegolo/core/camera/scanner_models.dart';
 import 'package:vegolo/features/ingredients/domain/entities/ingredient.dart';
@@ -11,6 +12,10 @@ import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
 import 'package:vegolo/features/scanning/domain/services/rule_based_analyzer.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
 import 'package:vegolo/features/settings/domain/repositories/settings_repository.dart';
+
+class _FakeProgressCallback extends Fake {
+  void call(GemmaAnalysisProgress progress) {}
+}
 
 class _StubIngredientRepository implements IngredientRepository {
   @override
@@ -40,6 +45,7 @@ class _StubRuleAnalyzer extends RuleBasedAnalyzer {
 
 class _FakeSettingsRepository implements SettingsRepository {
   bool aiEnabled = false;
+  GemmaGenerationOptions options = GemmaGenerationOptions.defaults;
 
   @override
   Future<bool> getAiAnalysisEnabled() async => aiEnabled;
@@ -54,6 +60,14 @@ class _FakeSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> setSaveFullImages(bool value) async {}
+
+  @override
+  Future<GemmaGenerationOptions> getGemmaGenerationOptions() async => options;
+
+  @override
+  Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
+    options = value;
+  }
 }
 
 class _MockGemmaService extends Mock implements GemmaService {}
@@ -63,6 +77,8 @@ void main() {
     registerFallbackValue(<String>[]);
     registerFallbackValue(const Duration(milliseconds: 1));
     registerFallbackValue(0.0);
+    registerFallbackValue(GemmaGenerationOptions.defaults);
+    registerFallbackValue(_FakeProgressCallback());
   });
 
   group('PerformScanAnalysis', () {
@@ -94,7 +110,13 @@ void main() {
         ),
       );
 
-      verifyNever(() => gemma.analyze(ocrTextLines: any(named: 'ocrTextLines')));
+      verifyNever(
+        () => gemma.analyze(
+          ocrTextLines: any<List<String>>(named: 'ocrTextLines'),
+          generationOptions: any(named: 'generationOptions'),
+          onProgress: any(named: 'onProgress'),
+        ),
+      );
       expect(result, equals(ruleResult));
     });
 
@@ -108,6 +130,8 @@ void main() {
           ocrTextLines: any<List<String>>(named: 'ocrTextLines'),
           timeout: any(named: 'timeout'),
           deviceRamGb: any(named: 'deviceRamGb'),
+          generationOptions: any(named: 'generationOptions'),
+          onProgress: any(named: 'onProgress'),
         ),
       ).thenAnswer((_) async => aiResult);
 
@@ -133,6 +157,8 @@ void main() {
           ocrTextLines: any<List<String>>(named: 'ocrTextLines'),
           timeout: any(named: 'timeout'),
           deviceRamGb: any(named: 'deviceRamGb'),
+          generationOptions: any(named: 'generationOptions'),
+          onProgress: any(named: 'onProgress'),
         ),
       ).called(1);
       expect(result, equals(aiResult));
@@ -168,6 +194,8 @@ void main() {
           ocrTextLines: any<List<String>>(named: 'ocrTextLines'),
           timeout: any(named: 'timeout'),
           deviceRamGb: any(named: 'deviceRamGb'),
+          generationOptions: any(named: 'generationOptions'),
+          onProgress: any(named: 'onProgress'),
         ),
       );
       expect(result, equals(ruleResult));

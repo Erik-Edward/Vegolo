@@ -13,8 +13,10 @@ import 'package:vegolo/features/scanning/presentation/bloc/scanning_bloc.dart';
 import 'package:vegolo/main.dart';
 import 'package:vegolo/shared/utils/constants.dart';
 import 'package:vegolo/features/history/domain/repositories/scan_history_repository.dart';
+import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/features/history/domain/entities/scan_history_entry.dart';
 import 'package:vegolo/features/settings/domain/repositories/settings_repository.dart';
+import 'package:vegolo/core/ai/gemma_service.dart';
 
 class _DummyScannerService implements ScannerService {
   const _DummyScannerService();
@@ -71,9 +73,15 @@ class _DummyOcrProcessor implements OcrProcessor {
 
 class _DummyPerformScanAnalysis implements PerformScanAnalysis {
   @override
-  Future<VeganAnalysis> call(OcrResult result) async {
+  Future<VeganAnalysis> call(
+    OcrResult result, {
+    void Function(GemmaAnalysisProgress progress)? onAiProgress,
+  }) async {
     return const VeganAnalysis(isVegan: true, confidence: 0.5);
   }
+
+  @override
+  Future<void> cancelAi() async {}
 }
 
 void main() {
@@ -96,15 +104,9 @@ void main() {
           performScanAnalysis: getIt(),
         ),
       )
-      ..registerLazySingleton<ScanHistoryRepository>(
-        () => _DummyHistoryRepo(),
-      )
-      ..registerLazySingleton<OffCache>(
-        () => OffCache(prefs),
-      )
-      ..registerLazySingleton<SettingsRepository>(
-        () => _DummySettingsRepo(),
-      );
+      ..registerLazySingleton<ScanHistoryRepository>(() => _DummyHistoryRepo())
+      ..registerLazySingleton<OffCache>(() => OffCache(prefs))
+      ..registerLazySingleton<SettingsRepository>(() => _DummySettingsRepo());
   });
 
   tearDown(() async {
@@ -139,6 +141,7 @@ class _DummyHistoryRepo implements ScanHistoryRepository {
 
 class _DummySettingsRepo implements SettingsRepository {
   bool _v = false;
+  GemmaGenerationOptions _options = GemmaGenerationOptions.defaults;
   @override
   Future<bool> getSaveFullImages() async => _v;
 
@@ -152,4 +155,12 @@ class _DummySettingsRepo implements SettingsRepository {
 
   @override
   Future<void> setAiAnalysisEnabled(bool value) async {}
+
+  @override
+  Future<GemmaGenerationOptions> getGemmaGenerationOptions() async => _options;
+
+  @override
+  Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
+    _options = value;
+  }
 }

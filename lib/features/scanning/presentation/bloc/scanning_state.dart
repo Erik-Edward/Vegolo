@@ -22,6 +22,11 @@ class ScanningState extends Equatable {
     this.suspendOcr = false,
     this.mode = ScanMode.ingredients,
     this.pendingDetailEntry,
+    this.aiInFlight = false,
+    this.aiPartialResponse,
+    this.aiTtftMs,
+    this.aiLatencyMs,
+    this.aiFinishReason,
   });
 
   const ScanningState.initial() : this(status: ScanningStatus.idle);
@@ -42,6 +47,11 @@ class ScanningState extends Equatable {
   final bool suspendOcr;
   final ScanMode mode;
   final ScanHistoryEntry? pendingDetailEntry;
+  final bool aiInFlight;
+  final String? aiPartialResponse;
+  final int? aiTtftMs;
+  final int? aiLatencyMs;
+  final String? aiFinishReason;
 
   ScanningState copyWith({
     ScanningStatus? status,
@@ -71,6 +81,15 @@ class ScanningState extends Equatable {
     ScanMode? mode,
     ScanHistoryEntry? pendingDetailEntry,
     bool clearPendingDetail = false,
+    bool? aiInFlight,
+    String? aiPartialResponse,
+    bool clearAiPartial = false,
+    int? aiTtftMs,
+    bool clearAiTtft = false,
+    int? aiLatencyMs,
+    bool clearAiLatency = false,
+    String? aiFinishReason,
+    bool clearAiFinishReason = false,
   }) {
     return ScanningState(
       status: status ?? this.status,
@@ -82,8 +101,7 @@ class ScanningState extends Equatable {
       permanentlyDenied: permanentlyDenied ?? this.permanentlyDenied,
       productName: clearProduct ? null : (productName ?? this.productName),
       barcode: clearBarcode ? null : (barcode ?? this.barcode),
-      offImageUrl:
-          clearOffImageUrl ? null : (offImageUrl ?? this.offImageUrl),
+      offImageUrl: clearOffImageUrl ? null : (offImageUrl ?? this.offImageUrl),
       offLastUpdated: clearOffLastUpdated
           ? null
           : (offLastUpdated ?? this.offLastUpdated),
@@ -98,6 +116,15 @@ class ScanningState extends Equatable {
       pendingDetailEntry: clearPendingDetail
           ? null
           : (pendingDetailEntry ?? this.pendingDetailEntry),
+      aiInFlight: aiInFlight ?? this.aiInFlight,
+      aiPartialResponse: clearAiPartial
+          ? null
+          : (aiPartialResponse ?? this.aiPartialResponse),
+      aiTtftMs: clearAiTtft ? null : (aiTtftMs ?? this.aiTtftMs),
+      aiLatencyMs: clearAiLatency ? null : (aiLatencyMs ?? this.aiLatencyMs),
+      aiFinishReason: clearAiFinishReason
+          ? null
+          : (aiFinishReason ?? this.aiFinishReason),
     );
   }
 
@@ -119,5 +146,10 @@ class ScanningState extends Equatable {
     suspendOcr,
     mode,
     pendingDetailEntry,
+    aiInFlight,
+    aiPartialResponse,
+    aiTtftMs,
+    aiLatencyMs,
+    aiFinishReason,
   ];
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:injectable/injectable.dart';
@@ -17,6 +16,7 @@ import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.d
 import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
 import 'package:vegolo/core/barcode/barcode_scanner.dart';
 import 'package:vegolo/shared/utils/text_normalizer.dart';
+import 'package:vegolo/core/ai/gemma_service.dart';
 
 part 'scanning_event.dart';
 part 'scanning_state.dart';
@@ -49,6 +49,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     on<ScanningOcrResumed>(_onOcrResumed);
     on<ScanningModeChanged>(_onModeChanged);
     on<ScanningDetailShown>(_onDetailShown);
+    on<ScanningAiCancelRequested>(_onAiCancelRequested);
   }
 
   final ScannerService _scannerService;
@@ -73,16 +74,23 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
       return;
     }
 
-    emit(state.copyWith(
-      status: ScanningStatus.initializing,
-      clearError: true,
-      clearProduct: true,
-      clearBarcode: true,
-      clearOffImageUrl: true,
-      clearOffLastUpdated: true,
-      clearOffIngredients: true,
-      clearOffIngredientsText: true,
-    ));
+    emit(
+      state.copyWith(
+        status: ScanningStatus.initializing,
+        clearError: true,
+        clearProduct: true,
+        clearBarcode: true,
+        clearOffImageUrl: true,
+        clearOffLastUpdated: true,
+        clearOffIngredients: true,
+        clearOffIngredientsText: true,
+        aiInFlight: false,
+        clearAiPartial: true,
+        clearAiTtft: true,
+        clearAiLatency: true,
+        clearAiFinishReason: true,
+      ),
+    );
 
     add(const ScanningPermissionRequested());
   }
@@ -131,6 +139,11 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         clearFrame: true,
         clearOcr: true,
         clearAnalysis: true,
+        aiInFlight: false,
+        clearAiPartial: true,
+        clearAiTtft: true,
+        clearAiLatency: true,
+        clearAiFinishReason: true,
       ),
     );
   }
@@ -169,21 +182,34 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     try {
       if (newMode == ScanMode.barcode) {
         await _scannerService.setProcessEveryNthFrame(6);
-        emit(state.copyWith(mode: newMode, suspendOcr: true));
+        emit(
+          state.copyWith(
+            mode: newMode,
+            suspendOcr: true,
+            aiInFlight: false,
+            clearAiPartial: true,
+          ),
+        );
       } else {
         await _scannerService.setProcessEveryNthFrame(3);
-        emit(state.copyWith(
-          mode: newMode,
-          suspendOcr: false,
-          clearBarcode: true,
-          clearOffImageUrl: true,
-          clearOffLastUpdated: true,
-          clearOffIngredients: true,
-          clearOffIngredientsText: true,
-        ));
+        emit(
+          state.copyWith(
+            mode: newMode,
+            suspendOcr: false,
+            clearBarcode: true,
+            clearOffImageUrl: true,
+            clearOffLastUpdated: true,
+            clearOffIngredients: true,
+            clearOffIngredientsText: true,
+            aiInFlight: false,
+            clearAiPartial: true,
+          ),
+        );
       }
     } catch (_) {
-      emit(state.copyWith(mode: newMode));
+      emit(
+        state.copyWith(mode: newMode, aiInFlight: false, clearAiPartial: true),
+      );
     }
   }
 
@@ -193,7 +219,7 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
   ) async {
     try {
       await _scannerService.pause();
-      emit(state.copyWith(status: ScanningStatus.paused));
+      emit(state.copyWith(status: ScanningStatus.paused, aiInFlight: false));
     } catch (error) {
       add(_ScanningFailed(error.toString()));
     }
@@ -206,7 +232,13 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     try {
       await _scannerService.resume();
       await _listenToFrames();
-      emit(state.copyWith(status: ScanningStatus.scanning));
+      emit(
+        state.copyWith(
+          status: ScanningStatus.scanning,
+          aiInFlight: false,
+          clearAiPartial: true,
+        ),
+      );
     } catch (error) {
       add(_ScanningFailed(error.toString()));
     }
@@ -238,11 +270,13 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     try {
       if (getIt.isRegistered<ScanHistoryRepository>()) {
         final repo = getIt<ScanHistoryRepository>();
-        final analysis = state.analysis ?? const VeganAnalysis(
-          isVegan: false,
-          confidence: 0.0,
-          flaggedIngredients: ['uncertain'],
-        );
+        final analysis =
+            state.analysis ??
+            const VeganAnalysis(
+              isVegan: false,
+              confidence: 0.0,
+              flaggedIngredients: ['uncertain'],
+            );
         String? thumbnailPath;
         // Prefer OFF product image for thumbnail if available.
         final offUrl = state.offImageUrl;
@@ -258,8 +292,8 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           } catch (_) {}
         }
 
-        final detected = state.offIngredients ??
-            _buildDetectedIngredients(state.ocrResult);
+        final detected =
+            state.offIngredients ?? _buildDetectedIngredients(state.ocrResult);
         final entry = ScanHistoryEntry(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
           scannedAt: DateTime.now(),
@@ -286,6 +320,11 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         clearOcr: true,
         clearAnalysis: true,
         pendingDetailEntry: pendingEntry,
+        aiInFlight: false,
+        clearAiPartial: true,
+        clearAiTtft: true,
+        clearAiLatency: true,
+        clearAiFinishReason: true,
       ),
     );
     _autoStoppingBarcode = false;
@@ -295,18 +334,20 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     ScanningBarcodeProductReceived event,
     Emitter<ScanningState> emit,
   ) async {
-    emit(state.copyWith(
-      productName: event.productName,
-      barcode: event.barcode,
-      offImageUrl: event.imageUrl,
-      offLastUpdated: event.lastUpdated,
-      offIngredients: event.ingredients,
-      offIngredientsText: event.ingredientsText,
-    ));
+    emit(
+      state.copyWith(
+        productName: event.productName,
+        barcode: event.barcode,
+        offImageUrl: event.imageUrl,
+        offLastUpdated: event.lastUpdated,
+        offIngredients: event.ingredients,
+        offIngredientsText: event.ingredientsText,
+      ),
+    );
 
     // Analyze OFF ingredients without invoking OCR.
-    final ingredientsText = event.ingredientsText ??
-        (event.ingredients?.join(', ') ?? '');
+    final ingredientsText =
+        event.ingredientsText ?? (event.ingredients?.join(', ') ?? '');
     if (ingredientsText.trim().isNotEmpty) {
       try {
         final dummyFrame = ScannerFrame(
@@ -318,8 +359,35 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           blocks: const [],
           frame: dummyFrame,
         );
-        final analysis = await _performScanAnalysis(offOcr);
+        var aiProgressObserved = false;
+        final analysis = await _performScanAnalysis(
+          offOcr,
+          onAiProgress: (GemmaAnalysisProgress progress) {
+            aiProgressObserved = true;
+            final indicator = progress.isFinal
+                ? null
+                : _formatAiProgress(progress.partialText, progress.delta);
+            emit(
+              state.copyWith(
+                aiInFlight: !progress.isFinal,
+                aiPartialResponse: indicator,
+                aiTtftMs: progress.ttftMs ?? state.aiTtftMs,
+                aiLatencyMs: progress.latencyMs ?? state.aiLatencyMs,
+                aiFinishReason: progress.isFinal
+                    ? progress.finishReason ?? state.aiFinishReason
+                    : state.aiFinishReason,
+                clearAiFinishReason:
+                    progress.isFinal && progress.finishReason == null,
+              ),
+            );
+          },
+        );
         emit(state.copyWith(analysis: analysis));
+        if (!aiProgressObserved) {
+          emit(state.copyWith(aiInFlight: false, clearAiPartial: true));
+        } else {
+          emit(state.copyWith(aiInFlight: false));
+        }
       } catch (_) {}
     }
 
@@ -334,14 +402,16 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     ScanningClearBarcodeInfo event,
     Emitter<ScanningState> emit,
   ) async {
-    emit(state.copyWith(
-      clearProduct: true,
-      clearBarcode: true,
-      clearOffImageUrl: true,
-      clearOffLastUpdated: true,
-      clearOffIngredients: true,
-      clearOffIngredientsText: true,
-    ));
+    emit(
+      state.copyWith(
+        clearProduct: true,
+        clearBarcode: true,
+        clearOffImageUrl: true,
+        clearOffLastUpdated: true,
+        clearOffIngredients: true,
+        clearOffIngredientsText: true,
+      ),
+    );
   }
 
   Future<void> _onOcrSuspended(
@@ -368,6 +438,20 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     emit(state.copyWith(clearPendingDetail: true));
   }
 
+  Future<void> _onAiCancelRequested(
+    ScanningAiCancelRequested event,
+    Emitter<ScanningState> emit,
+  ) async {
+    await _performScanAnalysis.cancelAi();
+    emit(
+      state.copyWith(
+        aiInFlight: false,
+        clearAiPartial: true,
+        aiFinishReason: 'cancelled',
+      ),
+    );
+  }
+
   Future<void> _onFrameReceived(
     _ScannerFrameReceived event,
     Emitter<ScanningState> emit,
@@ -375,22 +459,29 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     // Barcode mode: detect barcodes, no OCR.
     if (state.mode == ScanMode.barcode) {
       final now = DateTime.now();
-      if (_lastBarcodeAt != null && now.difference(_lastBarcodeAt!) < _minBarcodeInterval) {
+      if (_lastBarcodeAt != null &&
+          now.difference(_lastBarcodeAt!) < _minBarcodeInterval) {
         return;
       }
       _lastBarcodeAt = now;
       try {
-        final code = await getIt<BarcodeScannerService>().detectBarcode(event.frame);
+        final code = await getIt<BarcodeScannerService>().detectBarcode(
+          event.frame,
+        );
         if (code != null) {
-          final product = await getIt<BarcodeRepository>().fetchOffProduct(code);
-          add(ScanningBarcodeProductReceived(
-            barcode: code,
-            productName: product?.productName,
-            imageUrl: product?.imageUrl,
-            lastUpdated: product?.lastUpdated,
-            ingredients: product?.ingredients,
-            ingredientsText: product?.ingredientsText,
-          ));
+          final product = await getIt<BarcodeRepository>().fetchOffProduct(
+            code,
+          );
+          add(
+            ScanningBarcodeProductReceived(
+              barcode: code,
+              productName: product?.productName,
+              imageUrl: product?.imageUrl,
+              lastUpdated: product?.lastUpdated,
+              ingredients: product?.ingredients,
+              ingredientsText: product?.ingredientsText,
+            ),
+          );
         }
       } catch (_) {}
       return;
@@ -414,6 +505,8 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         status: ScanningStatus.scanning,
         latestFrame: event.frame,
         clearError: true,
+        aiInFlight: false,
+        clearAiPartial: true,
       ),
     );
 
@@ -423,9 +516,13 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
       // Debug summary: length + first 80 chars (strip newlines)
       final brief = ocrResult.fullText.replaceAll('\n', ' ');
       // ignore: avoid_print
-      print('[OCR] len=${brief.length} head="${brief.length > 80 ? brief.substring(0, 80) : brief}"');
+      print(
+        '[OCR] len=${brief.length} head="${brief.length > 80 ? brief.substring(0, 80) : brief}"',
+      );
       // Debounce analysis if text hasn't materially changed.
-      final normalized = TextNormalizer.normalizeForIngredients(ocrResult.fullText);
+      final normalized = TextNormalizer.normalizeForIngredients(
+        ocrResult.fullText,
+      );
       if (_lastNormalizedOcr != null && _lastNormalizedOcr == normalized) {
         emit(
           state.copyWith(
@@ -439,7 +536,35 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
       }
       _lastNormalizedOcr = normalized;
 
-      final analysis = await _performScanAnalysis(ocrResult);
+      var aiProgressObserved = false;
+      final analysis = await _performScanAnalysis(
+        ocrResult,
+        onAiProgress: (GemmaAnalysisProgress progress) {
+          aiProgressObserved = true;
+          final indicator = progress.isFinal
+              ? null
+              : _formatAiProgress(progress.partialText, progress.delta);
+          emit(
+            state.copyWith(
+              aiInFlight: !progress.isFinal,
+              aiPartialResponse: indicator,
+              aiTtftMs: progress.ttftMs ?? state.aiTtftMs,
+              aiLatencyMs: progress.latencyMs ?? state.aiLatencyMs,
+              aiFinishReason: progress.isFinal
+                  ? progress.finishReason ?? state.aiFinishReason
+                  : state.aiFinishReason,
+              clearAiFinishReason:
+                  progress.isFinal && progress.finishReason == null,
+            ),
+          );
+          if (progress.isFinal) {
+            debugPrint(
+              '[Gemma] stream completed reason=${progress.finishReason ?? 'unknown'} '
+              'ttft=${progress.ttftMs ?? -1}ms latency=${progress.latencyMs ?? -1}ms',
+            );
+          }
+        },
+      );
       emit(
         state.copyWith(
           status: ScanningStatus.success,
@@ -447,6 +572,8 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           analysis: analysis,
           latestFrame: event.frame,
           clearError: true,
+          aiInFlight: false,
+          clearAiPartial: !aiProgressObserved,
         ),
       );
     } catch (error) {
@@ -457,6 +584,8 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
           status: ScanningStatus.scanning,
           errorMessage: 'Uncertain — OCR could not read this frame',
           clearAnalysis: true,
+          aiInFlight: false,
+          clearAiPartial: true,
         ),
       );
     } finally {
@@ -476,6 +605,11 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
         errorMessage: event.message,
         clearOcr: true,
         clearAnalysis: true,
+        aiInFlight: false,
+        clearAiPartial: true,
+        clearAiTtft: true,
+        clearAiLatency: true,
+        clearAiFinishReason: true,
       ),
     );
   }
@@ -506,6 +640,15 @@ class ScanningBloc extends Bloc<ScanningEvent, ScanningState> {
     await _scannerService.dispose();
     await _ocrProcessor.dispose();
     return super.close();
+  }
+
+  String? _formatAiProgress(String partial, String delta) {
+    final source = delta.trim().isNotEmpty ? delta : partial;
+    final sanitized = source.replaceAll('\n', ' ').trim();
+    if (sanitized.isEmpty) {
+      return null;
+    }
+    return sanitized.length > 80 ? '${sanitized.substring(0, 80)}…' : sanitized;
   }
 
   List<String> _buildDetectedIngredients(OcrResult? result) {

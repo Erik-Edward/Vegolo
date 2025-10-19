@@ -105,15 +105,19 @@ class ScanningBarcodeProductReceived extends ScanningEvent {
 
   @override
   List<Object?> get props => [
-        barcode,
-        productName,
-        imageUrl,
-        lastUpdated,
-        ingredients,
-        ingredientsText,
-      ];
+    barcode,
+    productName,
+    imageUrl,
+    lastUpdated,
+    ingredients,
+    ingredientsText,
+  ];
 }
 
 class ScanningClearBarcodeInfo extends ScanningEvent {
   const ScanningClearBarcodeInfo();
+}
+
+class ScanningAiCancelRequested extends ScanningEvent {
+  const ScanningAiCancelRequested();
 }

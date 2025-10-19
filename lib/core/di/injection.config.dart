@@ -23,6 +23,7 @@ import 'package:vegolo/core/database/app_database.dart' as _i888;
 import 'package:vegolo/core/database/scan_history_local_data_source.dart'
     as _i929;
 import 'package:vegolo/core/di/shared_prefs_module.dart' as _i114;
+import 'package:vegolo/core/telemetry/telemetry_service.dart' as _i68;
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart'
     as _i754;
 import 'package:vegolo/features/history/data/thumbnail_generator.dart' as _i64;
@@ -85,6 +86,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i708.ScanningRepository>(
       () => const _i589.ScanningRepositoryImpl(),
     );
+    gh.lazySingleton<_i68.TelemetryService>(
+      () => _i68.AggregatingTelemetryService(),
+    );
     gh.lazySingleton<_i235.OcrProcessor>(
       () => _i235.MlKitOcrProcessor(),
       dispose: (i) => i.dispose(),
@@ -129,6 +133,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i432.GemmaService(
         gh<_i932.ModelManager>(),
         gh<_i714.GemmaRuntimeChannel>(),
+        gh<_i68.TelemetryService>(),
       ),
     );
     gh.lazySingleton<_i475.PerformScanAnalysis>(
