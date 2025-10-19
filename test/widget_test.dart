@@ -4,7 +4,9 @@ import 'package:vegolo/core/camera/ocr_models.dart';
 import 'package:vegolo/core/camera/ocr_processor.dart';
 import 'package:vegolo/core/camera/scanner_models.dart';
 import 'package:vegolo/core/camera/scanner_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vegolo/core/di/injection.dart';
+import 'package:vegolo/features/scanning/data/cache/off_cache.dart';
 import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
 import 'package:vegolo/features/scanning/domain/usecases/perform_scan_analysis.dart';
 import 'package:vegolo/features/scanning/presentation/bloc/scanning_bloc.dart';
@@ -77,6 +79,8 @@ class _DummyPerformScanAnalysis implements PerformScanAnalysis {
 void main() {
   setUp(() async {
     await getIt.reset();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     getIt
       ..registerLazySingleton<ScannerService>(
         () => const _DummyScannerService(),
@@ -94,6 +98,9 @@ void main() {
       )
       ..registerLazySingleton<ScanHistoryRepository>(
         () => _DummyHistoryRepo(),
+      )
+      ..registerLazySingleton<OffCache>(
+        () => OffCache(prefs),
       )
       ..registerLazySingleton<SettingsRepository>(
         () => _DummySettingsRepo(),

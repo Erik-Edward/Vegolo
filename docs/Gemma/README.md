@@ -35,47 +35,72 @@ This document tracks the Phase 2 scaffolding delivered in this iteration and rec
 
 ## Model Lifecycle (Dart)
 
-- `ModelManager` now orchestrates manifest caching, RAM-based variant selection, and native load/unload via `GemmaRuntimeChannel`.
+- `ModelManager` orchestrates manifest caching, RAM-based variant selection, and native load/unload via `GemmaRuntimeChannel`.
 - Device RAM heuristics: highest variant whose `min_ram_gb` fits the reported RAM, fallback to smallest bundle when below min spec.
-- Placeholders remain for:
-  1. Wi-Fi-only download + checksum verification.
-  2. Extracting archives into an mmap-friendly directory (expected: `ApplicationSupportDirectory/gemma/<variant>`).
-  3. KV-cache warm-up prompt (invoked through `GemmaRuntimeChannel.generate`).
-- Active model/tokenizer paths are cached for reuse by the tokenizer pipeline and exposed via getters.
+- **Download + extraction implemented**:
+  - Models/tokenizer (or a zipped archive) are downloaded into
+    `ApplicationSupportDirectory/vegolo/gemma3n/<variant>`.
+  - SHA-256 and size are enforced against the manifest; digest sidecars
+    (`*.sha256`) prevent repeated hashing.
+  - Archives (zip) are re-used via an `.archive_extracted` marker and are
+    extracted with path traversal protection.
+- The fully-qualified file paths are now cached for reuse by the tokenizer
+  pipeline and surfaced via `activeModelPath` / `activeTokenizerPath`.
+- Still pending: KV-cache warm-up prompt (invoked through
+  `GemmaRuntimeChannel.generate`).
 
 ## Android LiteRT-LM Bridge
 
 - Channel: `vegolo/gemma`.
 - Methods:
-  - `loadVariant(variantId, modelPath, tokenizerPath)` – loads interpreter (stubbed today).
+  - `loadVariant(variantId, modelPath, tokenizerPath, options)` – validates
+    file existence and captures runtime preferences (threads, NNAPI, default
+    timeout). The interpreter is still stubbed but the contract is ready.
   - `unload()` – releases interpreter, clears caches.
   - `isReady()` – returns `{ loaded: bool, variantId: string? }`.
-  - `generate(prompt, maxTokens, temperature, topP, timeoutMillis)` – executes inference (currently returns placeholder payload and logs latency).
-- Telemetry: logcat (`VegoloGemmaService`) records load/unload requests, requested variants, and latency for each `generate` call. Final integration will add failure codes / bail-out reasons.
-- Pending: LiteRT-LM interpreter wiring, delegate selection (NNAPI vs CPU), KV cache priming, and streaming/token budget enforcement.
+  - `generate(prompt, maxTokens, timeoutMillis)` – runs on a single-thread
+    executor, returns latency, timeout, or error reasons; placeholder text is
+    still empty until LiteRT-LM wiring lands.
+- Telemetry: logcat (`VegoloGemmaService`) records load/unload requests,
+  requested paths, options, and per-inference latency. The skeleton already
+  handles request timeouts and non-fatal errors.
+- Pending: LiteRT-LM interpreter wiring (google-ai-edge/LiteRT-LM), delegate
+  selection (NNAPI vs CPU), KV cache priming, and streaming/token budget
+  enforcement.
 
 ## Tokenizer Pipeline
 
-- Placeholder `PlaceholderGemmaTokenizer` (ASCII split) unblocks call sites until SentencePiece assets ship.
-- Factory: `createGemmaTokenizer(tokenizerPath)` will be swapped for a real SentencePiece binding (likely native via MethodChannel or Dart FFI).
-- Artifact placement expectation:
-  - `.model` file extracted next to the `.tflite` inside `ApplicationSupportDirectory/gemma/<variant>/tokenizer.model`.
-  - Model manifest entry points at the relative path within the archive; `ModelManager` will translate to absolute path during extraction.
-- TODO: confirm redistribution rights and delivery of Gemma 3n SentencePiece model; add checksum to manifest once pinned.
+- `createGemmaTokenizer` still returns a placeholder but now resolves the
+  tokenizer path emitted by `ModelManager`, i.e. the extracted
+  `tokenizers/gemma-3n-tokenizer.model` under the support directory.
+- TODO: confirm redistribution rights and delivery of Gemma 3n SentencePiece
+  model; add checksum to manifest once pinned.
 
 ## Analysis Flow (`PerformScanAnalysis`)
 
-- Rule-first decision remains authoritative for deterministic non-vegan hits (flagged ingredients).
+- Rule-first decision remains authoritative for deterministic non-vegan hits.
 - Configured uncertainty threshold: AI consulted when rule-based confidence < `0.75`.
-- Currently AI toggle is disabled (`AiAnalysisConfig.aiEnabled = false`) until the runtime is verified; flip the flag once the LiteRT-LM path is stable.
+- **Settings toggle implemented**: the AI path is gated by
+  `SettingsRepository.getAiAnalysisEnabled()`. Users can control it from
+  Settings → “Enable AI analysis (Gemma 3n)”.
 - Fallback rules:
   - AI failure (`null` or `PlatformException`) keeps rule result intact.
-  - AI success merges alternatives and flagged ingredients, preferring AI-specific findings.
+  - AI success merges alternatives and flagged ingredients, preferring AI
+    findings.
+
+### Tests
+
+- New unit coverage in `test/features/scanning/domain/perform_scan_analysis_test.dart`
+  verifies:
+  1. AI disabled → Gemma never invoked.
+  2. AI enabled + uncertain rule result → Gemma invoked and result merged.
+  3. Deterministic non-vegan rule decision stays authoritative even when AI is on.
 
 ## Telemetry & Debugging
 
 - Dart-side logs surface through `debugPrint` for load contention and AI errors.
-- Android logcat (tag `VegoloGemmaService`) captures load/unload requests, requested paths, and per-inference latency.
+- Android logcat (tag `VegoloGemmaService`) captures load/unload requests,
+  options, requested paths, and per-inference latency/timeout/error reasons.
 - Planned additions (Phase 2 follow-up):
   1. Structured telemetry sink (e.g., `Timber` + logcat filters) for development builds.
   2. Counters for rule-only fallback reasons (timeout, model not loaded, tokenizer missing).

@@ -6,6 +6,9 @@ import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -21,6 +24,12 @@ class GemmaService(
     private val channel = MethodChannel(binaryMessenger, CHANNEL_NAME)
     private val isLoaded = AtomicBoolean(false)
     private var activeVariantId: String? = null
+    private val executor = Executors.newSingleThreadExecutor()
+
+    // Placeholder for native runtime once wired.
+    private var activeModelPath: String? = null
+    private var activeTokenizerPath: String? = null
+    private var loadOptions: LoadOptions = LoadOptions()
 
     init {
         channel.setMethodCallHandler(this)
@@ -44,6 +53,7 @@ class GemmaService(
         val variantId = call.argument<String>("variantId")
         val modelPath = call.argument<String>("modelPath")
         val tokenizerPath = call.argument<String>("tokenizerPath")
+        val options = call.argument<Map<String, Any?>>("options")
 
         if (variantId.isNullOrBlank() || modelPath.isNullOrBlank()) {
             result.error(
@@ -56,10 +66,35 @@ class GemmaService(
 
         Log.i(TAG, "Requested to load Gemma variant $variantId at $modelPath")
 
+        // Validate files exist to fail fast before costly init.
+        val modelFile = File(modelPath)
+        if (!modelFile.exists() || !modelFile.isFile) {
+            result.error(
+                "missing_model",
+                "Model file not found at $modelPath",
+                null,
+            )
+            return
+        }
+        if (!tokenizerPath.isNullOrBlank()) {
+            val tFile = File(tokenizerPath)
+            if (!tFile.exists() || !tFile.isFile) {
+                Log.w(TAG, "Tokenizer file not found at $tokenizerPath — continuing (optional)")
+            }
+        }
+
+        this.loadOptions = LoadOptions.fromMap(options)
+        Log.i(
+            TAG,
+            "Load options => threads=${loadOptions.numThreads}, nnapi=${loadOptions.useNnapi}, timeout=${loadOptions.defaultTimeoutMs}ms",
+        )
+
         // TODO(ai-phase-2): Validate existence of model/tokenizer files.
         // TODO(ai-phase-2): Initialise LiteRT-LM interpreter and KV cache.
         activeVariantId = variantId
         isLoaded.set(true)
+        activeModelPath = modelPath
+        activeTokenizerPath = tokenizerPath
 
         result.success(
             mapOf(
@@ -106,7 +141,7 @@ class GemmaService(
 
         val prompt = call.argument<String>("prompt") ?: ""
         val maxTokens = call.argument<Int>("maxTokens") ?: 0
-        val timeoutMillis = call.argument<Int>("timeoutMillis") ?: DEFAULT_TIMEOUT_MS
+        val timeoutMillis = call.argument<Int>("timeoutMillis") ?: (loadOptions.defaultTimeoutMs ?: DEFAULT_TIMEOUT_MS)
 
         Log.i(
             TAG,
@@ -114,17 +149,58 @@ class GemmaService(
         )
 
         val startNanos = SystemClock.elapsedRealtimeNanos()
-        // TODO(ai-phase-2): Execute LiteRT-LM inference and stream/collect tokens.
-        val latencyMillis = (SystemClock.elapsedRealtimeNanos() - startNanos) / 1_000_000
 
-        result.success(
+        val future: Future<Map<String, Any?>> = executor.submit<Map<String, Any?>> {
+            // TODO(ai-phase-2): Replace with real LiteRT-LM call and token loop.
+            Thread.sleep(1) // Yield once.
             mapOf(
                 "text" to "",
-                "latencyMs" to latencyMillis,
                 "reason" to "not_implemented",
                 "echo" to prompt.take(64),
-            ),
-        )
+            )
+        }
+
+        try {
+            val core = future.get(timeoutMillis.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            val latencyMillis = (SystemClock.elapsedRealtimeNanos() - startNanos) / 1_000_000
+            result.success(core + mapOf("latencyMs" to latencyMillis))
+        } catch (to: java.util.concurrent.TimeoutException) {
+            future.cancel(true)
+            result.success(
+                mapOf(
+                    "text" to "",
+                    "latencyMs" to (SystemClock.elapsedRealtimeNanos() - startNanos) / 1_000_000,
+                    "reason" to "timeout",
+                    "echo" to prompt.take(64),
+                ),
+            )
+        } catch (ex: Exception) {
+            Log.e(TAG, "generate() failure", ex)
+            result.success(
+                mapOf(
+                    "text" to "",
+                    "latencyMs" to (SystemClock.elapsedRealtimeNanos() - startNanos) / 1_000_000,
+                    "reason" to "error:${ex.javaClass.simpleName}",
+                    "echo" to prompt.take(64),
+                ),
+            )
+        }
+    }
+
+    data class LoadOptions(
+        val numThreads: Int? = null,
+        val useNnapi: Boolean? = null,
+        val defaultTimeoutMs: Int? = null,
+    ) {
+        companion object {
+            fun fromMap(map: Map<String, Any?>?): LoadOptions {
+                if (map == null) return LoadOptions()
+                val threads = (map["numThreads"] as? Number)?.toInt()
+                val nnapi = (map["useNnapi"] as? Boolean)
+                val timeout = (map["defaultTimeoutMs"] as? Number)?.toInt()
+                return LoadOptions(numThreads = threads, useNnapi = nnapi, defaultTimeoutMs = timeout)
+            }
+        }
     }
 
     companion object {

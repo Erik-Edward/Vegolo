@@ -52,11 +52,13 @@ class GemmaRuntimeChannel {
     required ModelVariant variant,
     required String modelPath,
     String? tokenizerPath,
+    Map<String, Object?> options = const {},
   }) async {
     await _channel.invokeMethod<void>('loadVariant', {
       'variantId': variant.manifestId,
       'modelPath': modelPath,
       'tokenizerPath': tokenizerPath,
+      'options': options,
     });
   }
 
