@@ -1,0 +1,50 @@
+{
+    "comment": "Apply this patch to lib/core/ai/model_manifest.json after downloading and verifying the tokenizer",
+    "instructions": [
+        "1. Accept Gemma Terms of Use at https://huggingface.co/google/gemma-3n-E4B-it",
+        "2. Download tokenizer.model using authenticated access",
+        "3. Compute SHA-256: sha256sum tokenizer.model",
+        "4. Verify size: stat --format=%s tokenizer.model (should be 4696020 bytes)",
+        "5. Update the sha256 field below with the computed hash",
+        "6. Place tokenizer in lib/core/ai/tokenizers/gemma-3n-tokenizer.model"
+    ],
+    "variants": [
+        {
+            "name": "nano",
+            "comment": "Gemma 3n E2B variant (smaller, 2B params)",
+            "files": [
+                {
+                    "type": "tokenizer",
+                    "path": "tokenizers/gemma-3n-tokenizer.model",
+                    "sha256": "COMPUTE_AFTER_DOWNLOAD",
+                    "size_bytes": 4696020,
+                    "source_repo": "google/gemma-3n-E2B-it",
+                    "source_file": "tokenizer.model",
+                    "lfs_oid": "ea5f0cc48abfbfc04d14562270a32e02149a3e7035f368cc5a462786f4a59961"
+                }
+            ]
+        },
+        {
+            "name": "standard",
+            "comment": "Gemma 3n E4B variant (4B params)",
+            "files": [
+                {
+                    "type": "tokenizer",
+                    "path": "tokenizers/gemma-3n-tokenizer.model",
+                    "sha256": "COMPUTE_AFTER_DOWNLOAD",
+                    "size_bytes": 4696020,
+                    "source_repo": "google/gemma-3n-E4B-it",
+                    "source_file": "tokenizer.model",
+                    "lfs_oid": "ea5f0cc48abfbfc04d14562270a32e02149a3e7035f368cc5a462786f4a59961"
+                }
+            ]
+        }
+    ],
+    "licensing": {
+        "terms": "Gemma Terms of Use",
+        "terms_url": "https://ai.google.dev/gemma/terms",
+        "prohibited_use_policy": "https://ai.google.dev/gemma/prohibited_use_policy",
+        "license_tag": "gemma",
+        "required_notice": "Gemma is provided under and subject to the Gemma Terms of Use found at https://ai.google.dev/gemma/terms"
+    }
+}

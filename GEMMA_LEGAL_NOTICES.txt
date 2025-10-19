@@ -1,0 +1,84 @@
+===============================================================================
+GEMMA MODEL LEGAL NOTICES
+===============================================================================
+
+This application uses the Gemma 3n model and tokenizer developed by 
+Google DeepMind.
+
+REQUIRED NOTICE:
+
+  Gemma is provided under and subject to the Gemma Terms of Use found at
+  https://ai.google.dev/gemma/terms
+
+===============================================================================
+TERMS AND POLICIES
+===============================================================================
+
+Gemma Terms of Use:
+  https://ai.google.dev/gemma/terms
+  Last modified: March 24, 2025
+
+Gemma Prohibited Use Policy:
+  https://ai.google.dev/gemma/prohibited_use_policy
+
+===============================================================================
+MODEL INFORMATION
+===============================================================================
+
+Model Family:     Gemma 3n (Nano)
+Developers:       Google DeepMind
+License:          Gemma Terms of Use
+Repository:       https://huggingface.co/google/gemma-3n-E4B-it
+                  https://huggingface.co/google/gemma-3n-E2B-it
+
+Tokenizer:        SentencePiece tokenizer (tokenizer.model)
+Tokenizer Size:   4,696,020 bytes (~4.48 MB)
+Tokenizer Format: SentencePiece .model format
+
+===============================================================================
+USAGE RESTRICTIONS
+===============================================================================
+
+This application and the Gemma model must be used in compliance with:
+
+1. Gemma Terms of Use (https://ai.google.dev/gemma/terms)
+2. Gemma Prohibited Use Policy 
+   (https://ai.google.dev/gemma/prohibited_use_policy)
+
+Key restrictions include (but are not limited to):
+
+- Do not use for illegal activities
+- Do not use to harm or exploit individuals
+- Do not use to generate misleading or deceptive content
+- Do not use to violate privacy or intellectual property rights
+- See full policy for complete list of prohibited uses
+
+===============================================================================
+ATTRIBUTION
+===============================================================================
+
+Model developed by Google DeepMind
+Research paper: arXiv:2502.12404 and related publications
+
+===============================================================================
+DISCLAIMER
+===============================================================================
+
+This application provides automated ingredient analysis using AI. Results 
+should be verified independently. The developers make no guarantees about 
+the accuracy or completeness of the analysis.
+
+This application does not constitute official vegan certification.
+
+===============================================================================
+CONTACT
+===============================================================================
+
+For questions about Gemma Terms of Use:
+  Contact Google at https://ai.google.dev/gemma
+
+For questions about this application:
+  [Your contact information]
+
+===============================================================================
+

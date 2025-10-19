@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "generated_at": "2024-10-01T00:00:00Z",
+  "artifacts_base_url": "https://download.example.com/vegolo/gemma3n/",
+  "variants": [
+    {
+      "id": "nano",
+      "display_name": "Gemma 3n Nano",
+      "min_ram_gb": 3.0,
+      "recommended_ram_gb": 4.0,
+      "max_sequence_length": 2048,
+      "quantization": "int8-dynamic",
+      "model_type": "litert-lm",
+      "compression": "zip",
+      "archive_sha256": "TBD",
+      "archive_size_bytes": 0,
+      "files": [
+        {
+          "type": "model",
+          "path": "gemma_3n/nano/gemma-3n-nano-int8.tflite",
+          "sha256": "TBD",
+          "size_bytes": 0
+        },
+        {
+          "type": "tokenizer",
+          "path": "tokenizers/gemma-3n-tokenizer.model",
+          "sha256": "TBD",
+          "size_bytes": 0
+        }
+      ]
+    },
+    {
+      "id": "standard",
+      "display_name": "Gemma 3n Standard",
+      "min_ram_gb": 5.5,
+      "recommended_ram_gb": 6.0,
+      "max_sequence_length": 3072,
+      "quantization": "int8",
+      "model_type": "litert-lm",
+      "compression": "zip",
+      "archive_sha256": "TBD",
+      "archive_size_bytes": 0,
+      "files": [
+        {
+          "type": "model",
+          "path": "gemma_3n/standard/gemma-3n-standard-int8.tflite",
+          "sha256": "TBD",
+          "size_bytes": 0
+        },
+        {
+          "type": "tokenizer",
+          "path": "tokenizers/gemma-3n-tokenizer.model",
+          "sha256": "TBD",
+          "size_bytes": 0
+        }
+      ]
+    },
+    {
+      "id": "full",
+      "display_name": "Gemma 3n Full",
+      "min_ram_gb": 7.5,
+      "recommended_ram_gb": 8.0,
+      "max_sequence_length": 4096,
+      "quantization": "int4-mixed",
+      "model_type": "litert-lm",
+      "compression": "zip",
+      "archive_sha256": "TBD",
+      "archive_size_bytes": 0,
+      "files": [
+        {
+          "type": "model",
+          "path": "gemma_3n/full/gemma-3n-full-int4.tflite",
+          "sha256": "TBD",
+          "size_bytes": 0
+        },
+        {
+          "type": "tokenizer",
+          "path": "tokenizers/gemma-3n-tokenizer.model",
+          "sha256": "TBD",
+          "size_bytes": 0
+        }
+      ]
+    }
+  ]
+}

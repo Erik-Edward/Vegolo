@@ -12,8 +12,11 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
+import 'package:vegolo/core/ai/gemma_channel.dart' as _i714;
 import 'package:vegolo/core/ai/gemma_service.dart' as _i432;
 import 'package:vegolo/core/ai/model_manager.dart' as _i932;
+import 'package:vegolo/core/ai/model_manifest_loader.dart' as _i985;
+import 'package:vegolo/core/barcode/barcode_scanner.dart' as _i279;
 import 'package:vegolo/core/camera/ocr_processor.dart' as _i235;
 import 'package:vegolo/core/camera/scanner_service.dart' as _i517;
 import 'package:vegolo/core/database/app_database.dart' as _i888;
@@ -31,8 +34,15 @@ import 'package:vegolo/features/ingredients/data/seed/ingredient_seed_loader.dar
     as _i831;
 import 'package:vegolo/features/ingredients/domain/repositories/ingredient_repository.dart'
     as _i314;
+import 'package:vegolo/features/scanning/data/cache/off_cache.dart' as _i839;
+import 'package:vegolo/features/scanning/data/clients/open_food_facts_client.dart'
+    as _i133;
+import 'package:vegolo/features/scanning/data/repositories/barcode_repository_impl.dart'
+    as _i110;
 import 'package:vegolo/features/scanning/data/repositories/scanning_repository_impl.dart'
     as _i589;
+import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart'
+    as _i964;
 import 'package:vegolo/features/scanning/domain/repositories/scanning_repository.dart'
     as _i708;
 import 'package:vegolo/features/scanning/domain/services/rule_based_analyzer.dart'
@@ -60,10 +70,17 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i64.ThumbnailGenerator>(() => _i64.ThumbnailGenerator());
     gh.lazySingleton<_i888.AppDatabase>(() => _i888.AppDatabase());
-    gh.lazySingleton<_i932.ModelManager>(() => const _i932.ModelManager());
-    gh.lazySingleton<_i432.GemmaService>(() => const _i432.GemmaService());
+    gh.lazySingleton<_i714.GemmaRuntimeChannel>(
+      () => _i714.GemmaRuntimeChannel(),
+    );
+    gh.lazySingleton<_i985.ModelManifestLoader>(
+      () => _i985.ModelManifestLoader(),
+    );
     gh.lazySingleton<_i314.IngredientRepository>(
       () => _i1020.IngredientRepositoryImpl(gh<_i888.AppDatabase>()),
+    );
+    gh.lazySingleton<_i839.OffCache>(
+      () => _i839.OffCache(gh<_i460.SharedPreferences>()),
     );
     gh.lazySingleton<_i708.ScanningRepository>(
       () => const _i589.ScanningRepositoryImpl(),
@@ -79,6 +96,22 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i929.ScanHistoryLocalDataSource>(
       () => _i929.DriftScanHistoryLocalDataSource(gh<_i888.AppDatabase>()),
     );
+    gh.lazySingleton<_i279.BarcodeScannerService>(
+      () => _i279.MlKitBarcodeScannerService(),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i932.ModelManager>(
+      () => _i932.ModelManager(
+        gh<_i985.ModelManifestLoader>(),
+        gh<_i714.GemmaRuntimeChannel>(),
+      ),
+    );
+    gh.lazySingleton<_i964.BarcodeRepository>(
+      () => _i110.BarcodeRepositoryImpl(
+        gh<_i133.OpenFoodFactsClient>(),
+        gh<_i839.OffCache>(),
+      ),
+    );
     gh.lazySingleton<_i831.IngredientSeedLoader>(
       () => _i831.IngredientSeedLoader(gh<_i314.IngredientRepository>()),
     );
@@ -92,8 +125,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i164.RuleBasedAnalyzer>(
       () => _i164.RuleBasedAnalyzer(gh<_i314.IngredientRepository>()),
     );
+    gh.lazySingleton<_i432.GemmaService>(
+      () => _i432.GemmaService(
+        gh<_i932.ModelManager>(),
+        gh<_i714.GemmaRuntimeChannel>(),
+      ),
+    );
     gh.lazySingleton<_i475.PerformScanAnalysis>(
-      () => _i475.PerformScanAnalysis(gh<_i164.RuleBasedAnalyzer>()),
+      () => _i475.PerformScanAnalysis(
+        gh<_i164.RuleBasedAnalyzer>(),
+        gh<_i432.GemmaService>(),
+      ),
     );
     gh.factory<_i596.ScanningBloc>(
       () => _i596.ScanningBloc(

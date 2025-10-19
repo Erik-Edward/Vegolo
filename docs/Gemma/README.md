@@ -1,73 +1,105 @@
-# Google AI Edge Gallery ✨
+# Vegolo Gemma 3n Integration — Sprint 1 Notes
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/google-ai-edge/gallery)](https://github.com/google-ai-edge/gallery/releases)
+This document tracks the Phase 2 scaffolding delivered in this iteration and records the open questions left to unblock full LiteRT-LM integration. All prior reference PDFs/blog posts remain inside `docs/Gemma/` and `docs/Gemma3n/`; this README now anchors Vegolo-specific decisions.
 
-**Explore, Experience, and Evaluate the Future of On-Device Generative AI with Google AI Edge.**
+---
 
-The Google AI Edge Gallery is an experimental app that puts the power of cutting-edge Generative AI models directly into your hands, running entirely on your Android *(available now)* and iOS *(coming soon)* devices. Dive into a world of creative and practical AI use cases, all running locally, without needing an internet connection once the model is loaded. Experiment with different models, chat, ask questions with images and audio clip, explore prompts, and more!
+## Manifest & Artifact Layout
 
-Install the app today from Google Play
+- Source of truth: `lib/core/ai/model_manifest.json` (bundled via `pubspec.yaml`).
+- Loader: `ModelManifestLoader` validates structure, ensures checksums, and exposes variant metadata to `ModelManager`.
+- Schema highlights:
 
-<a href='https://play.google.com/store/apps/details?id=com.google.ai.edge.gallery'><img alt='Get it on Google Play' width="250" src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
+```jsonc
+{
+  "schema_version": 1,
+  "generated_at": "2024-10-01T00:00:00Z",
+  "artifacts_base_url": "https://download.example.com/vegolo/gemma3n/",
+  "variants": [
+    {
+      "id": "nano",
+      "min_ram_gb": 3.0,
+      "recommended_ram_gb": 4.0,
+      "quantization": "int8-dynamic",
+      "archive_sha256": "TBD",
+      "files": [
+        {"type": "model", "path": "gemma_3n/nano/gemma-3n-nano-int8.tflite"},
+        {"type": "tokenizer", "path": "tokenizers/gemma-3n-tokenizer.model"}
+      ]
+    }
+  ]
+}
+```
 
-For users without Google Play access, install the apk from the [**latest release**](https://github.com/google-ai-edge/gallery/releases/latest/)
+- TODO: replace `"TBD"` checksums, real sizes, and final CDN base URL once artifacts land.
 
-> [!IMPORTANT]
-> You must uninstall all previous versions of the app before installing this one. Past versions will no longer be working and supported.
+## Model Lifecycle (Dart)
 
-<img width="480" alt="01" src="https://github.com/user-attachments/assets/2a60c8d0-ef4e-4040-a948-fa73f6a622b4" />
-<img width="480" alt="02" src="https://github.com/user-attachments/assets/d155d458-b822-415d-9252-7e825fe8c9c0" />
-<img width="480" alt="03" src="https://github.com/user-attachments/assets/1977af6f-ee7e-41b3-aac1-a642c66c0058" />
-<img width="480" alt="04" src="https://github.com/user-attachments/assets/a48be969-f57e-4497-9ecf-8feb35f2ba71" />
-<img width="480" alt="05" src="https://github.com/user-attachments/assets/2a9679ea-f191-4ffd-87db-6726f7c1057d" />
+- `ModelManager` now orchestrates manifest caching, RAM-based variant selection, and native load/unload via `GemmaRuntimeChannel`.
+- Device RAM heuristics: highest variant whose `min_ram_gb` fits the reported RAM, fallback to smallest bundle when below min spec.
+- Placeholders remain for:
+  1. Wi-Fi-only download + checksum verification.
+  2. Extracting archives into an mmap-friendly directory (expected: `ApplicationSupportDirectory/gemma/<variant>`).
+  3. KV-cache warm-up prompt (invoked through `GemmaRuntimeChannel.generate`).
+- Active model/tokenizer paths are cached for reuse by the tokenizer pipeline and exposed via getters.
 
-## ✨ Core Features
+## Android LiteRT-LM Bridge
 
-*   **📱 Run Locally, Fully Offline:** Experience the magic of GenAI without an internet connection. All processing happens directly on your device.
-*   **🤖 Choose Your Model:** Easily switch between different models from Hugging Face and compare their performance.
-*   **🖼️ Ask Image:** Upload images and ask questions about them. Get descriptions, solve problems, or identify objects.
-*   **🎙️ Audio Scribe:** Transcribe an uploaded or recorded audio clip into text or translate it into another language.
-*   **✍️ Prompt Lab:** Summarize, rewrite, generate code, or use freeform prompts to explore single-turn LLM use cases.
-*   **💬 AI Chat:** Engage in multi-turn conversations.
-*   **📊 Performance Insights:** Real-time benchmarks (TTFT, decode speed, latency).
-*   **🧩 Bring Your Own Model:** Test your local LiteRT `.litertlm` models.
-*   **🔗 Developer Resources:** Quick links to model cards and source code.
+- Channel: `vegolo/gemma`.
+- Methods:
+  - `loadVariant(variantId, modelPath, tokenizerPath)` – loads interpreter (stubbed today).
+  - `unload()` – releases interpreter, clears caches.
+  - `isReady()` – returns `{ loaded: bool, variantId: string? }`.
+  - `generate(prompt, maxTokens, temperature, topP, timeoutMillis)` – executes inference (currently returns placeholder payload and logs latency).
+- Telemetry: logcat (`VegoloGemmaService`) records load/unload requests, requested variants, and latency for each `generate` call. Final integration will add failure codes / bail-out reasons.
+- Pending: LiteRT-LM interpreter wiring, delegate selection (NNAPI vs CPU), KV cache priming, and streaming/token budget enforcement.
 
-## 🏁 Get Started in Minutes!
+## Tokenizer Pipeline
 
-1. **Check OS Requirement**: Android 12 and up
-2.  **Download the App:**
-    - Install the app from [Google Play](https://play.google.com/store/apps/details?id=com.google.ai.edge.gallery).
-    - For users without Google Play access: install the apk from the [**latest release**](https://github.com/google-ai-edge/gallery/releases/latest/)
-3.  **Install & Explore:** For detailed installation instructions (including for corporate devices) and a full user guide, head over to our [**Project Wiki**](https://github.com/google-ai-edge/gallery/wiki)!
+- Placeholder `PlaceholderGemmaTokenizer` (ASCII split) unblocks call sites until SentencePiece assets ship.
+- Factory: `createGemmaTokenizer(tokenizerPath)` will be swapped for a real SentencePiece binding (likely native via MethodChannel or Dart FFI).
+- Artifact placement expectation:
+  - `.model` file extracted next to the `.tflite` inside `ApplicationSupportDirectory/gemma/<variant>/tokenizer.model`.
+  - Model manifest entry points at the relative path within the archive; `ModelManager` will translate to absolute path during extraction.
+- TODO: confirm redistribution rights and delivery of Gemma 3n SentencePiece model; add checksum to manifest once pinned.
 
-## 🛠️ Technology Highlights
+## Analysis Flow (`PerformScanAnalysis`)
 
-*   **Google AI Edge:** Core APIs and tools for on-device ML.
-*   **LiteRT:** Lightweight runtime for optimized model execution.
-*   **LLM Inference API:** Powering on-device Large Language Models.
-*   **Hugging Face Integration:** For model discovery and download.
+- Rule-first decision remains authoritative for deterministic non-vegan hits (flagged ingredients).
+- Configured uncertainty threshold: AI consulted when rule-based confidence < `0.75`.
+- Currently AI toggle is disabled (`AiAnalysisConfig.aiEnabled = false`) until the runtime is verified; flip the flag once the LiteRT-LM path is stable.
+- Fallback rules:
+  - AI failure (`null` or `PlatformException`) keeps rule result intact.
+  - AI success merges alternatives and flagged ingredients, preferring AI-specific findings.
 
-## ⌨️ Development
+## Telemetry & Debugging
 
-Check out the [development notes](DEVELOPMENT.md) for instructions about how to build the app locally.
+- Dart-side logs surface through `debugPrint` for load contention and AI errors.
+- Android logcat (tag `VegoloGemmaService`) captures load/unload requests, requested paths, and per-inference latency.
+- Planned additions (Phase 2 follow-up):
+  1. Structured telemetry sink (e.g., `Timber` + logcat filters) for development builds.
+  2. Counters for rule-only fallback reasons (timeout, model not loaded, tokenizer missing).
+  3. Battery/RAM sampling hook before/after load to validate guardrails.
 
-## 🤝 Feedback
+## Acceptance Fixtures (Planned)
 
-This is an **experimental Beta release**, and your input is crucial!
+1. **Rules passthrough** – Known vegan/non-vegan ingredient lists to assert AI is not consulted when confidence ≥ 0.75.
+2. **AI rescue** – Synthetic OCR blob with ambiguous wording; mock Gemma response to ensure merged output adjusts confidence and alternatives.
+3. **Timeout fallback** – Simulate `generate` timeout and validate rule result persists, telemetry records fallback.
+4. **Tokenizer missing** – Force manifest without tokenizer entry to assert descriptive error surfaced and rule result holds.
 
-*   🐞 **Found a bug?** [Report it here!](https://github.com/google-ai-edge/gallery/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D)
-*   💡 **Have an idea?** [Suggest a feature!](https://github.com/google-ai-edge/gallery/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BFEATURE%5D)
+Fixtures will live under `test/fixtures/gemma/` once tokenizer + runtime land; tests will inject a fake `GemmaService` to emulate native responses deterministically.
 
-## 📄 License
+## Outstanding Items / Open Questions
 
-Licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+1. **Tokenizer artefact** – Need Gemma 3n `.spm`/`.model` file + redistribution clearance.
+2. **Reference LiteRT-LM sample** – Pin `google-ai-edge/MediaPipe GenAI` commit for inference scaffolding and delegate configuration guidance.
+3. **Model delivery** – Decide between Play Asset Delivery vs. Play for On-device AI for Android; define checksum workflow and retention policy. Mirror plan for iOS ODR/app thinning.
+4. **License & attribution** – Finalize Gemma 3/3n licensing copy for settings/about screens.
+5. **RAM detection** – Source of truth for device RAM (Android: `ActivityManager.MemoryInfo`, iOS equivalent) to replace the current placeholder default.
 
-## 🔗 Useful Links
+---
 
-*   [**Project Wiki (Detailed Guides)**](https://github.com/google-ai-edge/gallery/wiki)
-*   [Hugging Face LiteRT Community](https://huggingface.co/litert-community)
-*   [LLM Inference guide for Android](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android)
-*   [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
-*   [Google AI Edge Documentation](https://ai.google.dev/edge)
+### Reference Library
+
+All upstream research material (Gemma model card, tokenizer spec, LiteRT-LM guides, Core ML planning, quantization notes) remains unchanged inside this directory and `docs/Gemma3n/`. Consult them as needed during implementation.
