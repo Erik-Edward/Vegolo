@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local tokenizer artifacts (do not commit)
+lib/core/ai/tokenizers/

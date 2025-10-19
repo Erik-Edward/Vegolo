@@ -16,7 +16,7 @@
                 {
                     "type": "tokenizer",
                     "path": "tokenizers/gemma-3n-tokenizer.model",
-                    "sha256": "COMPUTE_AFTER_DOWNLOAD",
+                    "sha256": "ea5f0cc48abfbfc04d14562270a32e02149a3e7035f368cc5a462786f4a59961",
                     "size_bytes": 4696020,
                     "source_repo": "google/gemma-3n-E2B-it",
                     "source_file": "tokenizer.model",
@@ -31,7 +31,7 @@
                 {
                     "type": "tokenizer",
                     "path": "tokenizers/gemma-3n-tokenizer.model",
-                    "sha256": "COMPUTE_AFTER_DOWNLOAD",
+                    "sha256": "ea5f0cc48abfbfc04d14562270a32e02149a3e7035f368cc5a462786f4a59961",
                     "size_bytes": 4696020,
                     "source_repo": "google/gemma-3n-E4B-it",
                     "source_file": "tokenizer.model",
