@@ -9,6 +9,7 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   final SharedPreferences _prefs;
 
   static const _keySaveFullImages = 'save_full_images';
+  static const _keyAiAnalysisEnabled = 'ai_analysis_enabled';
 
   @override
   Future<bool> getSaveFullImages() async {
@@ -20,5 +21,14 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   Future<void> setSaveFullImages(bool value) async {
     await _prefs.setBool(_keySaveFullImages, value);
   }
-}
 
+  @override
+  Future<bool> getAiAnalysisEnabled() async {
+    return _prefs.getBool(_keyAiAnalysisEnabled) ?? false;
+  }
+
+  @override
+  Future<void> setAiAnalysisEnabled(bool value) async {
+    await _prefs.setBool(_keyAiAnalysisEnabled, value);
+  }
+}

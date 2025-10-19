@@ -93,6 +93,7 @@ class ModelVariantManifest {
     required this.compression,
     required this.archiveSha256,
     required this.archiveSizeBytes,
+    this.archivePath,
     required this.files,
   });
 
@@ -106,6 +107,7 @@ class ModelVariantManifest {
   final String compression;
   final String archiveSha256;
   final int archiveSizeBytes;
+  final String? archivePath;
   final List<ModelArtifactFile> files;
 
   factory ModelVariantManifest.fromJson(Map<String, dynamic> json) {
@@ -155,6 +157,16 @@ class ModelVariantManifest {
         'Variant "$id" archive_size_bytes is invalid.',
       );
     }
+    final rawArchivePath = json['archive_path'];
+    String? archivePath;
+    if (rawArchivePath != null) {
+      if (rawArchivePath is! String || rawArchivePath.isEmpty) {
+        throw ModelManifestException(
+          'Variant "$id" archive_path must be a non-empty string when provided.',
+        );
+      }
+      archivePath = rawArchivePath;
+    }
     final rawFiles = json['files'];
     if (rawFiles is! List || rawFiles.isEmpty) {
       throw ModelManifestException(
@@ -190,6 +202,7 @@ class ModelVariantManifest {
       compression: compression,
       archiveSha256: archiveSha256,
       archiveSizeBytes: sizeBytes,
+      archivePath: archivePath,
       files: files,
     );
   }

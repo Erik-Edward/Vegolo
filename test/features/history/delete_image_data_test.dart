@@ -32,6 +32,10 @@ class _Settings implements SettingsRepository {
   Future<bool> getSaveFullImages() async => false;
   @override
   Future<void> setSaveFullImages(bool value) async {}
+  @override
+  Future<bool> getAiAnalysisEnabled() async => false;
+  @override
+  Future<void> setAiAnalysisEnabled(bool value) async {}
 }
 
 void main() {
@@ -66,4 +70,3 @@ void main() {
     expect(updated.hasFullImage, isFalse);
   });
 }
-

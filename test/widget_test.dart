@@ -139,4 +139,10 @@ class _DummySettingsRepo implements SettingsRepository {
   Future<void> setSaveFullImages(bool value) async {
     _v = value;
   }
+
+  @override
+  Future<bool> getAiAnalysisEnabled() async => false;
+
+  @override
+  Future<void> setAiAnalysisEnabled(bool value) async {}
 }

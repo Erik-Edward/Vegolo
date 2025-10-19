@@ -2,21 +2,30 @@ import 'package:injectable/injectable.dart';
 import 'package:vegolo/core/camera/ocr_models.dart';
 import 'package:vegolo/core/ai/gemma_service.dart';
 import 'package:vegolo/features/scanning/domain/entities/vegan_analysis.dart';
+import 'package:vegolo/features/settings/domain/repositories/settings_repository.dart';
 import 'package:vegolo/features/scanning/domain/services/rule_based_analyzer.dart';
 
 /// Coordinates rule-based analysis and defers to AI (future) when needed.
 @lazySingleton
 class PerformScanAnalysis {
-  PerformScanAnalysis(this._ruleBasedAnalyzer, this._gemmaService);
+  PerformScanAnalysis(
+    this._ruleBasedAnalyzer,
+    this._gemmaService,
+    this._settingsRepository,
+  );
 
   final RuleBasedAnalyzer _ruleBasedAnalyzer;
   final GemmaService _gemmaService;
+  final SettingsRepository _settingsRepository;
   final AiAnalysisConfig _config = const AiAnalysisConfig();
 
   Future<VeganAnalysis> call(OcrResult result) async {
     final ruleAnalysis = await _ruleBasedAnalyzer.analyze(result);
 
-    if (!_config.aiEnabled) {
+    final aiEnabled =
+        _config.aiEnabledOverride ?? await _settingsRepository.getAiAnalysisEnabled();
+
+    if (!aiEnabled) {
       return ruleAnalysis;
     }
 
@@ -74,12 +83,12 @@ class PerformScanAnalysis {
 
 class AiAnalysisConfig {
   const AiAnalysisConfig({
-    this.aiEnabled = false,
+    this.aiEnabledOverride,
     this.minRuleConfidence = 0.75,
     this.aiTimeout = const Duration(milliseconds: 220),
   });
 
-  final bool aiEnabled;
+  final bool? aiEnabledOverride;
   final double minRuleConfidence;
   final Duration aiTimeout;
 }

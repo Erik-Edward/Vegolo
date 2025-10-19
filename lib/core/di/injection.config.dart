@@ -135,6 +135,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i475.PerformScanAnalysis(
         gh<_i164.RuleBasedAnalyzer>(),
         gh<_i432.GemmaService>(),
+        gh<_i952.SettingsRepository>(),
       ),
     );
     gh.factory<_i596.ScanningBloc>(

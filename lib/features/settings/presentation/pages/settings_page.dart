@@ -12,6 +12,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool? _saveFullImages;
+  bool? _aiEnabled;
   bool _loading = true;
   String _offCacheInfo = '…';
 
@@ -24,6 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _load() async {
     final repo = getIt<SettingsRepository>();
     final v = await repo.getSaveFullImages();
+    final ai = await repo.getAiAnalysisEnabled();
     final off = getIt<OffCache>();
     final bytes = await off.sizeBytes();
     final count = await off.itemCount();
@@ -31,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     setState(() {
       _saveFullImages = v;
+      _aiEnabled = ai;
       _loading = false;
       _offCacheInfo = '$count items • $mb MB';
     });
@@ -44,6 +47,28 @@ class _SettingsPageState extends State<SettingsPage> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
+                SwitchListTile(
+                  title: const Text('Enable AI analysis (Gemma 3n)'),
+                  subtitle: const Text(
+                    'Use on-device Gemma reasoning when the rule engine is uncertain.',
+                  ),
+                  value: _aiEnabled ?? false,
+                  onChanged: (v) async {
+                    setState(() => _aiEnabled = v);
+                    await getIt<SettingsRepository>().setAiAnalysisEnabled(v);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          v
+                              ? 'AI-assisted analysis enabled'
+                              : 'AI-assisted analysis disabled',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(),
                 SwitchListTile(
                   title: const Text('Save full images'),
                   subtitle: const Text(

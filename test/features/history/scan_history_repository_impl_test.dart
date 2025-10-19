@@ -69,6 +69,12 @@ class _FakeSettingsRepository implements SettingsRepository {
   Future<void> setSaveFullImages(bool value) async {
     _saveFull = value;
   }
+
+  @override
+  Future<bool> getAiAnalysisEnabled() async => false;
+
+  @override
+  Future<void> setAiAnalysisEnabled(bool value) async {}
 }
 
 void main() {
