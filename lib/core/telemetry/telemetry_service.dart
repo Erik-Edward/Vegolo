@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 import 'gemma_telemetry_summary.dart';
+import 'telemetry_exporter.dart';
 
 enum GemmaInferenceStatus { success, timeout, cancelled, error, parseFailure }
 
@@ -41,6 +44,8 @@ abstract class TelemetryService {
   ValueListenable<GemmaTelemetrySummary> get gemmaSummary;
 
   GemmaTelemetrySummary get currentGemmaSummary;
+
+  void registerExporter(TelemetryExporter exporter);
 }
 
 @LazySingleton(as: TelemetryService)
@@ -49,6 +54,7 @@ class AggregatingTelemetryService implements TelemetryService {
       : _summary = ValueNotifier(const GemmaTelemetrySummary.initial());
 
   final ValueNotifier<GemmaTelemetrySummary> _summary;
+  final List<TelemetryExporter> _exporters = [];
 
   @override
   ValueListenable<GemmaTelemetrySummary> get gemmaSummary => _summary;
@@ -61,6 +67,18 @@ class AggregatingTelemetryService implements TelemetryService {
     if (kDebugMode) {
       debugPrint('[telemetry][gemma] $event');
     }
-    _summary.value = _summary.value.updatedWith(event);
+    final updated = _summary.value.updatedWith(event);
+    _summary.value = updated;
+    for (final exporter in _exporters) {
+      unawaited(exporter.handleGemmaInference(event, updated));
+    }
+  }
+
+  @override
+  void registerExporter(TelemetryExporter exporter) {
+    if (_exporters.contains(exporter)) {
+      return;
+    }
+    _exporters.add(exporter);
   }
 }

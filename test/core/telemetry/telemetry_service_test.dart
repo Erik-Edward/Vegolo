@@ -1,9 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vegolo/core/telemetry/telemetry_service.dart';
+import 'package:vegolo/core/telemetry/telemetry_exporter.dart';
+import 'package:vegolo/core/telemetry/gemma_telemetry_summary.dart';
 
 void main() {
-  test('AggregatingTelemetryService records counts and averages', () {
+  test('AggregatingTelemetryService records counts and averages', () async {
     final service = AggregatingTelemetryService();
+    final recorded = <GemmaInferenceEvent>[];
+    service.registerExporter(_ListExporter(recorded));
 
     final event1 = GemmaInferenceEvent(
       status: GemmaInferenceStatus.success,
@@ -27,6 +31,8 @@ void main() {
     service.recordGemmaInference(event1);
     service.recordGemmaInference(event2);
 
+    await Future<void>.delayed(Duration.zero);
+
     final summary = service.currentGemmaSummary;
 
     expect(summary.total, 2);
@@ -40,5 +46,20 @@ void main() {
     expect(summary.latencySamples, 2);
     expect(summary.averageLatencyMs, closeTo((420 + 250) / 2, 1e-6));
     expect(summary.lastEvent, equals(event2));
+    expect(recorded, equals([event1, event2]));
   });
+}
+
+class _ListExporter implements TelemetryExporter {
+  _ListExporter(this.events);
+
+  final List<GemmaInferenceEvent> events;
+
+  @override
+  Future<void> handleGemmaInference(
+    GemmaInferenceEvent event,
+    GemmaTelemetrySummary summary,
+  ) async {
+    events.add(event);
+  }
 }

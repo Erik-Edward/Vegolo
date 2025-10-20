@@ -9,4 +9,7 @@ abstract class SettingsRepository {
 
   Future<GemmaGenerationOptions> getGemmaGenerationOptions();
   Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value);
+
+  Future<bool> getTelemetryAnalyticsEnabled();
+  Future<void> setTelemetryAnalyticsEnabled(bool value);
 }

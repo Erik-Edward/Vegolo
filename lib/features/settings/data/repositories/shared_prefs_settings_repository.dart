@@ -12,6 +12,7 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   static const _keySaveFullImages = 'save_full_images';
   static const _keyAiAnalysisEnabled = 'ai_analysis_enabled';
   static const _keyGemmaDecodeOptions = 'gemma_decode_options';
+  static const _keyTelemetryAnalyticsEnabled = 'telemetry_analytics_enabled';
 
   @override
   Future<bool> getSaveFullImages() async {
@@ -43,5 +44,15 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   @override
   Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
     await _prefs.setString(_keyGemmaDecodeOptions, value.encode());
+  }
+
+  @override
+  Future<bool> getTelemetryAnalyticsEnabled() async {
+    return _prefs.getBool(_keyTelemetryAnalyticsEnabled) ?? false;
+  }
+
+  @override
+  Future<void> setTelemetryAnalyticsEnabled(bool value) async {
+    await _prefs.setBool(_keyTelemetryAnalyticsEnabled, value);
   }
 }

@@ -10,6 +10,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:get_it/get_it.dart' as _i174;
+import 'package:http/http.dart' as _i519;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:vegolo/core/ai/gemma_channel.dart' as _i714;
@@ -22,8 +23,14 @@ import 'package:vegolo/core/camera/scanner_service.dart' as _i517;
 import 'package:vegolo/core/database/app_database.dart' as _i888;
 import 'package:vegolo/core/database/scan_history_local_data_source.dart'
     as _i929;
+import 'package:vegolo/core/di/http_client_module.dart' as _i720;
 import 'package:vegolo/core/di/shared_prefs_module.dart' as _i114;
+import 'package:vegolo/core/telemetry/analytics_telemetry_exporter.dart'
+    as _i376;
+import 'package:vegolo/core/telemetry/telemetry_config.dart' as _i577;
+import 'package:vegolo/core/telemetry/telemetry_module.dart' as _i807;
 import 'package:vegolo/core/telemetry/telemetry_service.dart' as _i68;
+import 'package:vegolo/core/telemetry/telemetry_uploader.dart' as _i436;
 import 'package:vegolo/features/history/data/repositories/scan_history_repository_impl.dart'
     as _i754;
 import 'package:vegolo/features/history/data/thumbnail_generator.dart' as _i64;
@@ -65,6 +72,8 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final sharedPrefsModule = _$SharedPrefsModule();
+    final telemetryModule = _$TelemetryModule();
+    final httpClientModule = _$HttpClientModule();
     await gh.factoryAsync<_i460.SharedPreferences>(
       () => sharedPrefsModule.prefs,
       preResolve: true,
@@ -77,6 +86,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i985.ModelManifestLoader>(
       () => _i985.ModelManifestLoader(),
     );
+    gh.lazySingleton<_i577.TelemetryConfig>(
+      () => telemetryModule.telemetryConfig(),
+    );
+    gh.lazySingleton<_i519.Client>(() => httpClientModule.httpClient());
     gh.lazySingleton<_i314.IngredientRepository>(
       () => _i1020.IngredientRepositoryImpl(gh<_i888.AppDatabase>()),
     );
@@ -119,11 +132,24 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i831.IngredientSeedLoader>(
       () => _i831.IngredientSeedLoader(gh<_i314.IngredientRepository>()),
     );
+    gh.lazySingleton<_i436.TelemetryUploader>(
+      () => _i436.HttpTelemetryUploader(
+        gh<_i519.Client>(),
+        gh<_i577.TelemetryConfig>(),
+      ),
+    );
     gh.lazySingleton<_i603.ScanHistoryRepository>(
       () => _i754.ScanHistoryRepositoryImpl(
         gh<_i64.ThumbnailGenerator>(),
         gh<_i929.ScanHistoryLocalDataSource>(),
         gh<_i952.SettingsRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i376.AnalyticsTelemetryExporter>(
+      () => _i376.AnalyticsTelemetryExporter(
+        gh<_i952.SettingsRepository>(),
+        gh<_i436.TelemetryUploader>(),
+        gh<_i577.TelemetryConfig>(),
       ),
     );
     gh.lazySingleton<_i164.RuleBasedAnalyzer>(
@@ -155,3 +181,7 @@ extension GetItInjectableX on _i174.GetIt {
 }
 
 class _$SharedPrefsModule extends _i114.SharedPrefsModule {}
+
+class _$TelemetryModule extends _i807.TelemetryModule {}
+
+class _$HttpClientModule extends _i720.HttpClientModule {}

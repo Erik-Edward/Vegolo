@@ -92,6 +92,11 @@ Scope to date:
 - **Telemetry**
   - Added `TelemetryService` (default `DebugTelemetryService`) that logs structured Gemma inference metrics (status, TTFT, latency, finish reason).
   - `GemmaService` records success, parse failure, timeout, and cancellation events so we can later swap in a production sink without touching call sites.
+  - Scanning page now exposes a developer-only telemetry card (analytics icon shown only in debug builds) that live updates counts/averages via the observable telemetry summary.
+  - `docs/TELEMETRY_PIPELINE.md` documents how to register production exporters via `TelemetryService.registerExporter`.
+  - `docs/TELEMETRY_EXPORTER_PLAYBOOK.md` outlines the steps to ship analytics safely (opt-in, batching, privacy, testing).
+  - Privacy policy surfaced in-app (Settings → Privacy policy) with matching text stored under `assets/privacy_policy.txt`.
+  - `TelemetryConfig` consumes `TELEMETRY_ENDPOINT` / `TELEMETRY_API_KEY` dart-defines; see telemetry docs for setup instructions.
 
 - **User configuration & legal**
   - Added `GemmaGenerationOptions` model, persisted via `SharedPrefsSettingsRepository`.

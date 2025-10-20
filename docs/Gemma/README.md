@@ -114,6 +114,8 @@ This document tracks the Phase 2 scaffolding delivered in this iteration and rec
 - New `TelemetryService` abstraction (default `DebugTelemetryService`) records
   Gemma inference outcomes (status, TTFT, latency, finish reason, response size)
   so the sink can be swapped for production analytics without code churn.
+- Scanning UI now includes a debug-only telemetry panel (analytics icon appears only in dev builds) that listens to the `TelemetryService` summary and surfaces counts/averages in real time.
+- See `docs/TELEMETRY_PIPELINE.md` for production exporter integration guidance.
 - Planned additions (Phase 2 follow-up):
   1. Wire `TelemetryService` into the production analytics/metrics pipeline and
      define retention/PII guidance.

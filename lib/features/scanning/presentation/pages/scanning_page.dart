@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:math' as math;
@@ -14,6 +15,8 @@ import 'package:vegolo/features/history/presentation/pages/history_detail_page.d
 import 'package:vegolo/features/ingredients/data/seed/ingredient_seed_loader.dart';
 import 'package:vegolo/features/scanning/domain/repositories/barcode_repository.dart';
 import 'package:vegolo/core/barcode/barcode_scanner.dart';
+import 'package:vegolo/core/telemetry/telemetry_service.dart';
+import 'package:vegolo/core/telemetry/gemma_telemetry_summary.dart';
 
 class ScanningPage extends StatefulWidget {
   const ScanningPage({super.key});
@@ -25,6 +28,7 @@ class ScanningPage extends StatefulWidget {
 class _ScanningPageState extends State<ScanningPage>
     with WidgetsBindingObserver {
   bool _showOcrOverlay = false;
+  bool _showTelemetry = false;
 
   @override
   void initState() {
@@ -63,6 +67,16 @@ class _ScanningPageState extends State<ScanningPage>
           _FlashToggleButton(),
           _ModeToggle(),
           _BarcodeSingleShotButton(),
+          if (kDebugMode)
+            IconButton(
+              tooltip: _showTelemetry
+                  ? 'Hide Gemma telemetry'
+                  : 'Show Gemma telemetry',
+              icon: Icon(
+                _showTelemetry ? Icons.analytics : Icons.analytics_outlined,
+              ),
+              onPressed: () => setState(() => _showTelemetry = !_showTelemetry),
+            ),
           IconButton(
             tooltip: _showOcrOverlay ? 'Hide OCR' : 'Show OCR',
             icon: Icon(_showOcrOverlay ? Icons.bug_report : Icons.text_snippet),
@@ -206,6 +220,10 @@ class _ScanningPageState extends State<ScanningPage>
                             ? () => bloc.add(const ScanningAiCancelRequested())
                             : null,
                       ),
+                    ],
+                    if (kDebugMode && _showTelemetry) ...[
+                      const SizedBox(height: 12),
+                      const _GemmaTelemetryPanel(),
                     ],
                     if (state.barcode != null) ...[
                       const SizedBox(height: 8),
@@ -450,6 +468,87 @@ class _AiProgressIndicator extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GemmaTelemetryPanel extends StatelessWidget {
+  const _GemmaTelemetryPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final telemetry = getIt<TelemetryService>();
+    return ValueListenableBuilder<GemmaTelemetrySummary>(
+      valueListenable: telemetry.gemmaSummary,
+      builder: (context, summary, _) {
+        if (summary.total == 0) {
+          return const SizedBox.shrink();
+        }
+        final theme = Theme.of(context);
+        return Card(
+          elevation: 0,
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.35,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Gemma telemetry', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    _TelemetryChip(label: 'total', value: summary.total),
+                    _TelemetryChip(label: 'success', value: summary.success),
+                    _TelemetryChip(label: 'timeout', value: summary.timeout),
+                    _TelemetryChip(
+                      label: 'cancelled',
+                      value: summary.cancelled,
+                    ),
+                    _TelemetryChip(label: 'error', value: summary.error),
+                    _TelemetryChip(label: 'parse', value: summary.parseFailure),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'TTFT avg: '
+                  '${summary.averageTtftMs != null ? summary.averageTtftMs!.toStringAsFixed(1) : '—'} ms '
+                  '(n=${summary.ttftSamples})',
+                  style: theme.textTheme.labelSmall,
+                ),
+                Text(
+                  'Latency avg: '
+                  '${summary.averageLatencyMs != null ? summary.averageLatencyMs!.toStringAsFixed(1) : '—'} ms '
+                  '(n=${summary.latencySamples})',
+                  style: theme.textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TelemetryChip extends StatelessWidget {
+  const _TelemetryChip({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Chip(
+      backgroundColor: theme.colorScheme.secondaryContainer.withValues(
+        alpha: 0.4,
+      ),
+      label: Text('$label: $value'),
     );
   }
 }

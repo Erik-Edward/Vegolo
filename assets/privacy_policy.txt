@@ -1,0 +1,44 @@
+Vegolo Telemetry & Analytics Policy
+
+Vegolo is designed as an offline-first app. Telemetry remains optional and
+privacy-preserving. This policy summarises what we collect, when, and how users
+stay in control.
+
+Data Collected (Telemetry Opt-in)
+--------------------------------
+When you enable “Share anonymous Gemma telemetry” in Settings, Vegolo may upload
+aggregated runtime metrics. No ingredient text, OCR content, images, or personal
+identifiers are transmitted.
+
+• variant – Gemma model variant selected for the device
+• status – outcome of each inference (success, timeout, cancelled, error, parse_failure)
+• prompt_length – number of characters in the sanitized prompt
+• response_length – number of characters returned by Gemma
+• ttft_ms – time-to-first-token in milliseconds
+• latency_ms – total inference latency in milliseconds
+• finish_reason – optional finish reason reported by the runtime
+• totals.* – aggregated counters and rolling averages for the metrics above
+
+User Controls
+-------------
+• Opt-in toggle lives at Settings → “Share anonymous telemetry.” Disabled by default.
+• Opting out stops further uploads immediately.
+• Offline mode respects your choice; nothing is queued when you are offline or opt out.
+• Clearing the app’s data (or uninstalling) removes any locally cached telemetry state.
+
+Retention & Use
+---------------
+• Telemetry is used to monitor performance and reliability.
+• No data is used for advertising or user profiling.
+• Access is limited to Vegolo engineering and QA for debugging trends.
+• Raw telemetry is retained for at most 180 days before being rolled into anonymised trend reports.
+
+Security & Compliance
+---------------------
+• Telemetry uploads use HTTPS (TLS 1.2+).
+• Deploy exporters to infrastructure that meets GDPR/CCPA obligations where applicable.
+• Changes to the telemetry payload or retention policy are documented here and surfaced in-app.
+
+Contact
+-------
+Questions about telemetry or privacy? Contact privacy@vegolo.app.

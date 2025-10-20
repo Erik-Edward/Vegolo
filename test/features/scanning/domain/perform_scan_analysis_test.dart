@@ -68,6 +68,12 @@ class _FakeSettingsRepository implements SettingsRepository {
   Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
     options = value;
   }
+
+  @override
+  Future<bool> getTelemetryAnalyticsEnabled() async => false;
+
+  @override
+  Future<void> setTelemetryAnalyticsEnabled(bool value) async {}
 }
 
 class _MockGemmaService extends Mock implements GemmaService {}

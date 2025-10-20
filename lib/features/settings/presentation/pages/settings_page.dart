@@ -4,6 +4,7 @@ import 'package:vegolo/core/ai/generation_options.dart';
 import 'package:vegolo/core/di/injection.dart';
 import 'package:vegolo/features/settings/domain/repositories/settings_repository.dart';
 import 'package:vegolo/features/scanning/data/cache/off_cache.dart';
+import 'package:vegolo/core/telemetry/analytics_telemetry_exporter.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -15,10 +16,12 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool? _saveFullImages;
   bool? _aiEnabled;
+  bool? _telemetryEnabled;
   GemmaGenerationOptions? _decodeOptions;
   bool _loading = true;
   String _offCacheInfo = '…';
   String? _legalNotice;
+  String? _privacyPolicy;
 
   @override
   void initState() {
@@ -30,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final repo = getIt<SettingsRepository>();
     final v = await repo.getSaveFullImages();
     final ai = await repo.getAiAnalysisEnabled();
+    final telemetry = await repo.getTelemetryAnalyticsEnabled();
     final options = await repo.getGemmaGenerationOptions();
     final off = getIt<OffCache>();
     final bytes = await off.sizeBytes();
@@ -39,6 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _saveFullImages = v;
       _aiEnabled = ai;
+      _telemetryEnabled = telemetry;
       _decodeOptions = options;
       _loading = false;
       _offCacheInfo = '$count items • $mb MB';
@@ -82,6 +87,30 @@ class _SettingsPageState extends State<SettingsPage> {
                     trailing: const Icon(Icons.tune),
                     onTap: () => _editGenerationOptions(context),
                   ),
+                SwitchListTile(
+                  title: const Text('Share anonymous Gemma telemetry'),
+                  subtitle: const Text(
+                    'Send aggregated on-device performance metrics to help improve Vegolo.',
+                  ),
+                  value: _telemetryEnabled ?? false,
+                  onChanged: (v) async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    setState(() => _telemetryEnabled = v);
+                    await getIt<SettingsRepository>()
+                        .setTelemetryAnalyticsEnabled(v);
+                    getIt<AnalyticsTelemetryExporter>().updateOptIn(v);
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          v
+                              ? 'Telemetry sharing enabled'
+                              : 'Telemetry sharing disabled',
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const Divider(),
                 SwitchListTile(
                   title: const Text('Save full images'),
@@ -129,6 +158,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   trailing: const Icon(Icons.article_outlined),
                   onTap: _showLegalNotices,
+                ),
+                ListTile(
+                  title: const Text('Privacy policy'),
+                  subtitle: const Text(
+                    'Telemetry data collection and retention',
+                  ),
+                  trailing: const Icon(Icons.privacy_tip_outlined),
+                  onTap: _showPrivacyPolicy,
                 ),
               ],
             ),
@@ -179,6 +216,41 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Gemma legal notices'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                text,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPrivacyPolicy() async {
+    final text =
+        _privacyPolicy ??
+        await rootBundle.loadString('assets/privacy_policy.txt');
+    if (!mounted) return;
+    setState(() {
+      _privacyPolicy = text;
+    });
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy policy'),
         content: SizedBox(
           width: double.maxFinite,
           child: Scrollbar(

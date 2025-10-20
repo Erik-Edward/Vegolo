@@ -48,6 +48,12 @@ class _Settings implements SettingsRepository {
   Future<void> setGemmaGenerationOptions(GemmaGenerationOptions value) async {
     _options = value;
   }
+
+  @override
+  Future<bool> getTelemetryAnalyticsEnabled() async => false;
+
+  @override
+  Future<void> setTelemetryAnalyticsEnabled(bool value) async {}
 }
 
 void main() {

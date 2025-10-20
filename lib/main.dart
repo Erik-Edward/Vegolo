@@ -7,6 +7,8 @@ import 'features/scanning/presentation/bloc/scanning_bloc.dart';
 import 'app/app_shell.dart';
 import 'shared/theme/app_theme.dart';
 import 'shared/utils/constants.dart';
+import 'core/telemetry/telemetry_service.dart';
+import 'core/telemetry/analytics_telemetry_exporter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,10 @@ Future<void> main() async {
   } catch (_) {
     // Ignore seeding errors in early MVP.
   }
+  final telemetry = getIt<TelemetryService>();
+  final analyticsExporter = getIt<AnalyticsTelemetryExporter>();
+  await analyticsExporter.refreshOptIn();
+  telemetry.registerExporter(analyticsExporter);
   runApp(const VegoloApp());
 }
 

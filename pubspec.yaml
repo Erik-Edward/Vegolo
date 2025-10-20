@@ -83,6 +83,7 @@ flutter:
     - assets/seed/ingredients.json
     - lib/core/ai/model_manifest.json
     - GEMMA_LEGAL_NOTICES.txt
+    - assets/privacy_policy.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:
