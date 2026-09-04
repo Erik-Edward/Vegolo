@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/*
+ * Designtokens.
+ *
+ * PROVISORISKT: den grafiska profilen är inte klar (se CLAUDE.md avsnitt 8).
+ * Färger och typografi nedan är ett återhållsamt utgångsläge — modernt och
+ * lugnt snarare än "hälsokostbutik". När den riktiga profilen finns ska den
+ * ersätta värdena här, inte spridas ut i komponenterna.
+ */
+@theme {
+  --color-canvas: #faf8f3;
+  --color-surface: #ffffff;
+  --color-ink: #16211c;
+  --color-muted: #5c6761;
+  --color-line: #e4e0d5;
+  --color-brand: #0f4034;
+  --color-brand-ink: #f4f7f2;
+  --color-brand-soft: #eaf0ea;
+
+  /* Används för utkast- och granskningsnotiser, aldrig som varumärkesfärg. */
+  --color-notice: #fdf7e7;
+  --color-notice-line: #e6d5a4;
+  --color-notice-ink: #6a5418;
+
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-display-serif);
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* Rubriker använder displayfonten utan att varje komponent behöver ange det. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
