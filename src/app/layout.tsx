@@ -1,19 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Instrument_Serif } from "next/font/google";
+import { Familjen_Grotesk, Martian_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { site } from "@/content/site";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/*
+ * Två typsnitt, båda fria under SIL Open Font License:
+ *   - Familjen Grotesk för rubriker och brödtext.
+ *   - Martian Mono för siffror, källor och deklarationer.
+ * Logotypen är en egen vektor (se Logo.tsx) och behöver inget typsnitt.
+ */
+const familjenGrotesk = Familjen_Grotesk({
+  variable: "--font-familjen",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const displaySerif = Instrument_Serif({
-  variable: "--font-display-serif",
+const martianMono = Martian_Mono({
+  variable: "--font-martian",
   subsets: ["latin"],
   weight: "400",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="sv"
-      className={`${geistSans.variable} ${displaySerif.variable} h-full antialiased`}
+      className={`${familjenGrotesk.variable} ${martianMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
         <SiteHeader />

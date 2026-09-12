@@ -17,6 +17,43 @@ export const site = {
   locale: "sv-SE",
 } as const;
 
+/**
+ * Startsidans texter.
+ *
+ * Rubriker skrivs utan avslutande punkt: den gröna Vegolo-punkten läggs på av
+ * <Punkt /> i komponenten. Den får bara avsluta påståenden vi kan belägga, så
+ * inga hälsopåståenden här.
+ */
+export const home = {
+  eyebrow: "Platshållartext",
+  heroHeading: "Veganskt, ända in i kapseln",
+  heroBody:
+    "B12, D3 och omega-3 för dig som lever växtbaserat. Inga animaliska råvaror, inte ens i skalet.",
+  heroCta: "Se sortimentet",
+  heroSecondary: "Så redovisar vi",
+
+  rangeHeading: "Sortimentet",
+  rangeBody: "Tre tillskott till att börja med. Fler tillkommer efterhand.",
+
+  openHeading: "Öppet redovisat",
+  openPoints: [
+    {
+      title: "Dokumentation, inte påståenden",
+      body: "Ursprungsintyg och analyscertifikat ligger på produktsidan, inte begravda i en FAQ.",
+    },
+    {
+      title: "Veganskt hela vägen",
+      body: "Även kapseln och processhjälpmedlen. D3 kommer från lav, inte från lanolin.",
+    },
+    {
+      title: "En del av intäkten doneras",
+      body: "Mekanism, belopp och mottagande organisation beslutas innan lansering. Beloppet kommer att redovisas publikt och gå att stämma av, inte anges som en marknadsföringssiffra.",
+      bodyDecided:
+        "Varje köp bidrar till {recipient}. Vi redovisar det donerade beloppet publikt.",
+    },
+  ],
+} as const;
+
 export const navigation = [
   { href: "/", label: "Start" },
   { href: "/produkter", label: "Produkter" },

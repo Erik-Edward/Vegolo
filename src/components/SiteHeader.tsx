@@ -1,16 +1,17 @@
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { navigation, site } from "@/content/site";
 
 export function SiteHeader() {
   return (
-    <header className="border-b border-line bg-canvas/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-5">
+    <header className="sticky top-0 z-10 border-b border-line bg-canvas/85 backdrop-blur">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-4">
         <Link
           href="/"
-          className="font-display text-2xl tracking-tight text-brand"
+          className="text-ink transition-opacity hover:opacity-80"
           aria-label={`${site.name} startsida`}
         >
-          {site.name}
+          <Logo className="h-6 w-auto" title={null} />
         </Link>
 
         <nav aria-label="Huvudmeny">

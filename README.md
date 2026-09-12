@@ -47,6 +47,20 @@ Sajten hanterar kosttillskott, och några krav upprätthålls därför av koden 
 - **Momsen** ligger i en tabell med giltighetsperioder (`src/lib/tax.ts`). 6 % gäller till och med 2027-12-31 och 12 % från 2028-01-01. Återgången kräver ingen kodändring.
 - **Priser** lagras i öre inklusive moms, eftersom det är priset kunden ska se. Nettot räknas fram.
 
+## Grafisk profil
+
+Färger, typsnitt och punktens regler ligger samlade i **`src/app/globals.css`**. Ändra profilen där — inte i enskilda komponenter.
+
+| Var | Vad |
+|---|---|
+| `src/components/Logo.tsx` | Ordbilden. Bokstäverna följer textfärgen, punkten följer ytan, så logotypen fungerar på vilken bakgrund som helst. |
+| `src/components/Punkt.tsx` | Den gröna punkten i rubriker. Sätts bara efter påståenden som går att belägga, aldrig efter ett hälsopåstående. |
+| `src/lib/brand.ts` | Produktens färg per produkt. Saknas färgen används aubergine, så nya produkter fungerar direkt. |
+| `public/logotyp/` | Färdiga logotypfiler för tryck och tredje part: aubergine, negativ och en färg. |
+| `src/app/icon.svg`, `src/app/opengraph-image.png` | Favikon och delningsbild. |
+
+Mörka ytor får klassen `on-dark`. Då byter punkten till den ljusa gröna nyansen automatiskt.
+
 ## Status
 
-Scaffolding. Startsida, produktlista och produktsidesmall fungerar. **Allt innehåll är platshållartext.** Kassa, varukorg och betalning är inte byggda ännu — det görs med Stripe, se CLAUDE.md avsnitt 6.
+Scaffolding. Startsida, produktlista och produktsidesmall fungerar. **Allt innehåll är platshållartext**, men den grafiska profilen är beslutad och inlagd. Kassa, varukorg och betalning är inte byggda ännu — det görs med Stripe, se CLAUDE.md avsnitt 6.

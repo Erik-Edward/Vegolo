@@ -1,30 +1,67 @@
 @import "tailwindcss";
 
 /*
- * Designtokens.
+ * Designtokens för Vegolos grafiska profil.
  *
- * PROVISORISKT: den grafiska profilen är inte klar (se CLAUDE.md avsnitt 8).
- * Färger och typografi nedan är ett återhållsamt utgångsläge — modernt och
- * lugnt snarare än "hälsokostbutik". När den riktiga profilen finns ska den
- * ersätta värdena här, inte spridas ut i komponenterna.
+ * Profilen bestämdes 2026-09-12 (se CLAUDE.md avsnitt 5). Kort:
+ *   - Aubergine är varumärkets mörka botten, Blomkål den ljusa.
+ *   - Punkten är den enda klara färgen. Blad på mörk botten, Blad djup på
+ *     ljus, eftersom det ljusa gröna bara når 1,9:1 mot Blomkål.
+ *   - Produktfärgerna är koder per produkt och används som detaljer, inte
+ *     som ytor. Varje färg finns i en ljus och en mörk variant så att den
+ *     kan användas både på aubergine och på ljus botten.
+ *
+ * Ändra profilen här, inte i enskilda komponenter.
  */
 @theme {
-  --color-canvas: #faf8f3;
+  /* Ytor */
+  --color-canvas: #f3f6ec;
   --color-surface: #ffffff;
-  --color-ink: #16211c;
-  --color-muted: #5c6761;
-  --color-line: #e4e0d5;
-  --color-brand: #0f4034;
-  --color-brand-ink: #f4f7f2;
-  --color-brand-soft: #eaf0ea;
+  --color-ink: #2a1230;
+  --color-muted: #5e4f63;
+  --color-line: #dce1d2;
 
-  /* Används för utkast- och granskningsnotiser, aldrig som varumärkesfärg. */
+  /* Aubergine */
+  --color-brand: #2a1230;
+  --color-brand-ink: #f3f6ec;
+  --color-brand-soft: #eceee2;
+  --color-brand-deep: #1d0b21;
+  --color-brand-tint: #3a1d41;
+
+  /* Punkten */
+  --color-dot: #6bcb62;
+  --color-dot-deep: #40a037;
+
+  /* Produktkoder */
+  --color-b12: #f2789a;
+  --color-b12-deep: #bc476c;
+  --color-d3: #f6c549;
+  --color-d3-deep: #8c6b01;
+  --color-omega: #a79cff;
+  --color-omega-deep: #7063c0;
+
+  /* Utkast- och granskningsnotiser. Aldrig varumärkesfärger. */
   --color-notice: #fdf7e7;
   --color-notice-line: #e6d5a4;
   --color-notice-ink: #6a5418;
 
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-display-serif);
+  --font-sans: var(--font-familjen);
+  --font-display: var(--font-familjen);
+  --font-mono: var(--font-martian);
+}
+
+/*
+ * Punktens nyans följer ytan, inte komponenten. Ljus botten är utgångsläget;
+ * mörka ytor får klassen .on-dark och byter då till den ljusa nyansen.
+ * Det gör att logotypen kan ligga på vilken bakgrund som helst utan att vi
+ * behöver egna filer per färg.
+ */
+:root {
+  --vg-dot: var(--color-dot-deep);
+}
+
+.on-dark {
+  --vg-dot: var(--color-dot);
 }
 
 body {
@@ -32,11 +69,37 @@ body {
   color: var(--color-ink);
 }
 
-/* Rubriker använder displayfonten utan att varje komponent behöver ange det. */
+/* Rubriker sätts i Familjen Grotesk, halvfet och tight. */
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+h1 {
+  letter-spacing: -0.04em;
+}
+
+/* Logotypens punkt. Fylls via CSS i stället för i filen, se Logo.tsx. */
+.vg-dot {
+  fill: var(--vg-dot);
+}
+
+/*
+ * Vegolo-punkten i rubriker: samma punkt som i logotypen.
+ * Tecknet ligger kvar i texten (med genomskinlig färg) så att skärmläsare
+ * läser meningen och kopierad text blir rätt — cirkeln är bara målad ovanpå.
+ */
+.punkt {
+  display: inline-block;
+  width: 0.19em;
+  height: 0.19em;
+  margin-left: 0.04em;
+  border-radius: 50%;
+  background: var(--vg-dot);
+  color: transparent;
+  overflow: hidden;
+  vertical-align: baseline;
 }
