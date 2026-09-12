@@ -8,7 +8,7 @@ Detta dokument ger Claude Code kontext om Vegolo som projekt och företag. Läs 
 
 **Vegolo är inte bara ett vinstdrivet bolag.** Grundarens uttalade syfte är att ha en genuint positiv påverkan för personer som lever växtbaserat och för djurrättsrörelsen. Det här är inte ett marknadsföringsbudskap som lagts på i efterhand — det är en del av varför bolaget finns, och det ska genomsyra produktbeslut, kommunikation och kod (t.ex. hur donationsspårning och transparens byggs in på webbplatsen).
 
-**Central mekanism:** en del av intäkten från varje köp doneras till en etablerad djurrättsorganisation (t.ex. Djurens Rätt, som har 90-konto och granskas av Svensk Insamlingskontroll). Detta ska kommuniceras transparent på webbplatsen — inte gömmas — och webbplatsen bör på sikt ha en publik "Vår påverkan"-sida som visar totalt donerat belopp.
+**Central mekanism:** en del av intäkten från varje köp doneras till en etablerad djurrättsorganisation (t.ex. Djurens Rätt, som har 90-konto och granskas av Svensk Insamlingskontroll). Detta ska kommuniceras transparent på webbplatsen — inte gömmas. Sidan `/var-paverkan` finns och är byggd för det: räknaren är summan av publicerade rapporter i `src/content/site.ts` (`donationReports`), aldrig en handskriven siffra. Så länge mekanismen inte är beslutad skriver sidan ut just det.
 
 ## 2. Nuvarande fas
 
@@ -49,6 +49,18 @@ Dessa är **inte förslag, utan krav** som produktsidor, kassaflöde och innehå
 - Transparens är ett kärnvärde — källor, certifieringar (mål: V-Label på sikt) och donationsdata ska vara lätta att hitta, inte gömda i en FAQ.
 - Målgrupp: veganer, vegetarianer, flexitarianer och personer engagerade i djurrättsfrågor i Sverige. Skriv och designa för en målgrupp som redan bryr sig — inte för att övertyga skeptiker om att växtbaserat är bra.
 
+### Grafisk profil (beslutad 2026-09-12)
+
+Profilen togs fram i fem rundor med gruns.co som inspirationskälla — inte som förlaga. Vad som lånades: en egenritad mjuk ordbild, ett eget färgpar med hög kontrast, en ikon som kommer ur något sant om bolaget, och lek i tonen men noggrannhet i fakta.
+
+- **Logotyp.** Ordbilden `vegolo` är ritad på Fredoka (halvfet, lätt utökad spärr) och ligger som vektor i `src/components/Logo.tsx`. Sista o:et är en **punkt**, inte en symbol som föreställer något. Skälet är principiellt: varje figur som avbildar ett föremål kopplas till en ingrediens (en ärta läses som ärtprotein, en gris som gelatin). Punkten betyder i stället *punkt* — så är det, inget finstilt.
+- **Bakgrunder.** Bokstäverna ritas i `currentColor` och punkten i variabeln `--vg-dot`, så logotypen fungerar på vilken bakgrund som helst. Aubergine är den vanligaste, men inte den enda. Ljus botten använder Blad djup, mörk botten Blad — den ljusa gröna når bara 1,9:1 mot Blomkål och är för svag där. Mörka ytor får klassen `.on-dark`, som byter nyans. Färdiga filer för tryck och tredje part ligger i `public/logotyp/` (aubergine, negativ, en färg).
+- **Färger.** Aubergine `#2A1230` (botten), Blomkål `#F3F6EC` (ljus yta), Blad `#6BCB62` (punkten på mörkt), Blad djup `#40A037` (punkten på ljust). Produktkoder som detaljer, aldrig ytor: B12 `#F2789A`, D3 `#F6C549`, Omega-3 `#A79CFF`, var och en med en mörk variant för ljus botten (se `src/lib/brand.ts`).
+- **Typsnitt.** Familjen Grotesk för rubriker och brödtext, Martian Mono för siffror, källor och deklarationer. Båda fria under SIL Open Font License, alltså tillåtna även på förpackning.
+- **Punkten i rubriker.** `<Punkt />` sätter samma gröna punkt sist i en rubrik. **Regel:** den avslutar bara påståenden vi kan belägga (ursprung, innehåll, donationer) — aldrig ett hälsopåstående. De står alltid ordagrant som i EU:s register, utan varumärkesgrepp.
+- **Figuren.** Punkten kan få ögon och blir då Vegolos figur. Den vilar på baslinjen, tittar tillbaka på meningen den avslutar och rör sig mjukt (trycks ihop när den landar). Den syns där kunden inte ska fatta ett beslut — insidan av locket, orderbekräftelse, tom varukorg, 404-sidan, sociala medier — aldrig på burkens framsida, i produktinformation eller i kassan. I koden ligger den i `src/components/Figur.tsx` och används i dag på 404-sidan. Den blinkar var sjätte sekund, men står stilla för den som har valt reducerad rörelse i systemet.
+- **Kvar att göra:** tryckprov på Blad hos etikettleverantören (grönt flyttar sig mest av alla färger mellan skärm och tryck; be om matchning mot en Pantone-dekorfärg), varumärkesregistrering av ordbilden med punkten i klass 5 hos PRV/EUIPO, och ett målgruppstest av profilen.
+
 ## 6. Teknikstack
 
 **Status: bekräftad med grundaren 2026-09-04.** Hosting är det enda som medvetet lämnats öppet.
@@ -81,7 +93,13 @@ Scaffoldingen är byggd så att de regulatoriska kraven i avsnitt 4 upprätthål
 | `src/lib/products/regulatory.ts` | De tre lagstadgade varningarna läggs på **automatiskt** för varje produkt. Hälsopåståenden med status `draft` filtreras bort i produktionsbygget och kan alltså inte råka publiceras. |
 | `src/lib/tax.ts` | Momssatser med giltighetsperiod. 6 % gäller 2026-04-01–2027-12-31, 12 % från 2028-01-01 — **återgången 2028 kräver ingen kodändring.** Priser lagras i öre inklusive moms; nettot räknas fram. |
 | `src/content/products/*.ts` | En fil per produkt. Här redigeras texter, priser och ingredienslistor. |
-| `src/content/site.ts` | Varumärkestexter och donationskonfiguration. |
+| `src/content/site.ts` | Varumärkestexter, startsidans copy och donationskonfiguration. |
+| `src/app/globals.css` | Den grafiska profilen: färger, typsnitt och punktens regler. Ändra profilen här. |
+| `src/components/Logo.tsx` | Ordbilden som vektor. Bokstäver i `currentColor`, punkten i `--vg-dot`. |
+| `src/components/Punkt.tsx` | Den gröna punkten i rubriker. Bara efter påståenden vi kan belägga. |
+| `src/components/Figur.tsx` | Punkten med ögon. Bara på sidor utan köpbeslut, se avsnitt 5. |
+| `src/lib/brand.ts` | Produktfärger per slug, med fallback så att nya produkter fungerar direkt. |
+| `src/lib/donation.ts` | Räknar ut donerad summa ur publicerade rapporter och beskriver mekanismen. |
 | `src/app/produkter/[slug]/page.tsx` | En mall som renderar hela sortimentet. Ny produkt = ny innehållsfil, ingen sidkod. |
 
 Miljövariabler för förhandsgranskning finns dokumenterade i `.env.example` (bl.a. en momsoverride för att se hur sajten ser ut efter 2028).
@@ -92,7 +110,7 @@ Miljövariabler för förhandsgranskning finns dokumenterade i `.env.example` (b
 
 - **Hosting** (se avsnitt 6)
 - Slutgiltigt varumärkesnamn för produkterna på förpackning kontra webbplats (om det skiljer sig från "Vegolo")
-- Slutlig produktfotografering och grafisk profil (grundaren tar fram detta själv — färger och typografi i `globals.css` är ett provisoriskt utgångsläge)
+- Produktfotografering (platshållarna på produktsidorna är utformade som etiketten tills fotona finns)
 - Exakt donationsbelopp/mekanism per köp och vilken organisation som slutgiltigt väljs — modellerat som `null` i `src/content/site.ts`, och gränssnittet skriver ut att det beslutas i stället för att visa en påhittad siffra
 - Om nyhetsbrev/kundkonto ska finnas från lansering eller läggas till senare
 - Leverantörsspecifikationer: alla produktuppgifter (doser, ingredienser, nettovikt) är platshållare tills white label-leverantörens specifikation finns

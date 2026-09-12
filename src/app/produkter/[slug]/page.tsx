@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DraftNotice } from "@/components/DraftNotice";
+import { Logo } from "@/components/Logo";
 import { Panel } from "@/components/Panel";
 import { PriceTag } from "@/components/PriceTag";
+import { Punkt } from "@/components/Punkt";
+import { accentFor } from "@/lib/brand";
 import { getProduct, getProductSlugs } from "@/lib/products";
 import { availabilityLabels, formLabels, ingredientRoleLabels } from "@/lib/products/labels";
 import {
@@ -54,30 +57,43 @@ export default async function ProductPage({
   const warnings = getAllWarnings(product);
   const claims = getPublishableHealthClaims(product);
   const days = daysPerPackage(product);
+  const accent = accentFor(product.slug);
 
   return (
     <article className="mx-auto max-w-5xl px-6 py-16">
       <div className="grid gap-12 lg:grid-cols-2">
-        {/* Produktfoto saknas ännu (CLAUDE.md avsnitt 8). */}
-        <div
-          className="flex aspect-square items-center justify-center rounded-lg bg-brand-soft text-sm text-muted"
-          aria-hidden="true"
-        >
-          Produktbild kommer
+        {/*
+         * Produktfoto saknas ännu (CLAUDE.md avsnitt 9). Platshållaren följer
+         * etikettens uppbyggnad: aubergine botten, produktens färg som linje.
+         */}
+        <div className="on-dark flex aspect-square flex-col justify-between rounded-xl bg-brand p-8 text-brand-ink">
+          <Logo className="h-5 w-auto" title={null} />
+          <div>
+            <p className="text-4xl leading-none font-semibold tracking-tight">
+              {product.name.replace(/^Vegolo\s+/, "")}
+            </p>
+            <span className={`mt-3 block h-1 w-16 rounded-full ${accent.mark}`} />
+          </div>
+          <p className="font-mono text-[11px] tracking-wide opacity-60">
+            Produktbild kommer
+          </p>
         </div>
 
         <div>
-          <p className="text-xs tracking-wide text-muted uppercase">
+          <p className="font-mono text-[11px] tracking-wide text-muted uppercase">
             {formLabels[product.form]} · {availabilityLabels[product.availability]}
           </p>
           <h1 className="mt-3 text-4xl">{product.name}</h1>
-          <p className="mt-2 text-lg text-muted">{product.tagline}</p>
+          <p className="mt-2 text-lg text-muted">
+            {product.tagline}
+            <Punkt />
+          </p>
 
           <div className="mt-8">
             <PriceTag price={product.price} showBreakdown size="lg" />
           </div>
 
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 font-mono text-xs tracking-wide text-muted">
             {product.netQuantity.unitCount} {product.netQuantity.unitLabel} ·{" "}
             {product.netQuantity.netWeightGram} g
             {days ? ` · räcker ca ${days} dagar` : ""}
@@ -87,7 +103,7 @@ export default async function ProductPage({
           <button
             type="button"
             disabled
-            className="mt-8 w-full cursor-not-allowed rounded-md bg-brand px-6 py-3 text-sm text-brand-ink opacity-40 sm:w-auto"
+            className="mt-8 w-full cursor-not-allowed rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-ink opacity-40 sm:w-auto"
           >
             Lägg i varukorg
           </button>
@@ -134,8 +150,10 @@ export default async function ProductPage({
               {product.nutrients.map((nutrient) => (
                 <tr key={nutrient.name} className="border-b border-line last:border-0">
                   <td className="py-2">{nutrient.name}</td>
-                  <td className="py-2">{nutrient.amountPerDailyDose}</td>
-                  <td className="py-2">
+                  <td className="py-2 font-mono text-xs tabular-nums">
+                    {nutrient.amountPerDailyDose}
+                  </td>
+                  <td className="py-2 font-mono text-xs tabular-nums">
                     {nutrient.nrvPercent === null ? "–" : `${nutrient.nrvPercent} %`}
                   </td>
                 </tr>
@@ -204,7 +222,7 @@ export default async function ProductPage({
                 {document.href ? (
                   <a
                     href={document.href}
-                    className="text-brand underline underline-offset-4"
+                    className="underline decoration-dot-deep decoration-2 underline-offset-4 hover:text-brand"
                   >
                     {document.title}
                   </a>
