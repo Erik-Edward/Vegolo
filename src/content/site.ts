@@ -66,6 +66,7 @@ export const missingPage = {
 export const navigation = [
   { href: "/", label: "Start" },
   { href: "/produkter", label: "Produkter" },
+  { href: "/var-paverkan", label: "Vår påverkan" },
 ] as const;
 
 /**
@@ -96,3 +97,75 @@ export function donationIsDecided(): boolean {
     (donation.shareOfRevenue !== null || donation.fixedAmountOrePerOrder !== null)
   );
 }
+
+/**
+ * En publicerad donationsrapport.
+ *
+ * Räknaren på "Vår påverkan" är summan av de här raderna, aldrig en siffra
+ * som skrivs in för hand. Det är skillnaden mellan ett redovisat belopp och
+ * ett marknadsföringstal: varje krona i summan går att följa till en period,
+ * en mottagare och ett kvitto.
+ */
+export type DonationReport = {
+  /** Perioden rapporten avser, t.ex. "2027 kvartal 1". */
+  period: string;
+  /** Donerat belopp i öre. */
+  amountOre: number;
+  /** Mottagare vid tillfället. Kan ändras över tid, därför per rapport. */
+  recipient: string;
+  /** Datum då pengarna betalades ut (ISO, t.ex. "2027-04-15"). */
+  paidAt: string;
+  /** Länk till kvitto eller mottagarens intyg. Tom sträng = inte publicerat än. */
+  receiptHref: string;
+};
+
+/** Tom tills första utbetalningen är gjord och kvittot finns. */
+export const donationReports: DonationReport[] = [];
+
+/**
+ * Texterna på "Vår påverkan".
+ *
+ * Sidan får bara påstå sådant som går att kontrollera. Så länge mekanismen
+ * inte är beslutad skriver sidan ut just det, i stället för att visa en
+ * påhittad siffra.
+ */
+export const impact = {
+  eyebrow: "Vår påverkan",
+  heading: "Varje krona redovisas",
+  lede: "En del av intäkten från varje köp går till djurrättsarbete. Här står hur mycket det blivit, vart pengarna gick och hur du kan kontrollera det.",
+
+  counterLabel: "Donerat hittills",
+  counterPending: "Räknaren startar vid lansering. Den visar summan av publicerade rapporter, inte en uppskattning.",
+  counterLive: "Summan av alla publicerade rapporter nedan.",
+
+  mechanismHeading: "Så funkar det",
+  mechanismPending:
+    "Mekanismen är inte beslutad ännu. När den är det står den här: hur stor del av varje köp som doneras, vilken organisation som tar emot och hur ofta pengarna betalas ut. Kravet vi utgår från är att organisationen har 90-konto och granskas av Svensk Insamlingskontroll.",
+
+  methodHeading: "Så redovisar vi",
+  methodPoints: [
+    {
+      title: "Beloppet kommer från försäljningen",
+      body: "Summan räknas fram ur faktiska order, inte ur en budget eller en prognos.",
+    },
+    {
+      title: "Varje utbetalning får ett kvitto",
+      body: "Kvitto eller intyg från mottagaren länkas i tabellen nedan, så att du kan kontrollera beloppet hos dem och inte bara hos oss.",
+    },
+    {
+      title: "Räknaren är summan av rapporterna",
+      body: "Siffran högst upp är adderad ur tabellen. Finns ingen rapport finns ingen siffra.",
+    },
+  ],
+
+  reportsHeading: "Rapporter",
+  reportsEmpty:
+    "Inga rapporter ännu. Den första publiceras efter den första utbetalningen.",
+  reportsColumns: {
+    period: "Period",
+    amount: "Belopp",
+    recipient: "Mottagare",
+    paidAt: "Utbetalt",
+    receipt: "Kvitto",
+  },
+} as const;

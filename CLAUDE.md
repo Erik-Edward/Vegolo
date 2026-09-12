@@ -8,7 +8,7 @@ Detta dokument ger Claude Code kontext om Vegolo som projekt och företag. Läs 
 
 **Vegolo är inte bara ett vinstdrivet bolag.** Grundarens uttalade syfte är att ha en genuint positiv påverkan för personer som lever växtbaserat och för djurrättsrörelsen. Det här är inte ett marknadsföringsbudskap som lagts på i efterhand — det är en del av varför bolaget finns, och det ska genomsyra produktbeslut, kommunikation och kod (t.ex. hur donationsspårning och transparens byggs in på webbplatsen).
 
-**Central mekanism:** en del av intäkten från varje köp doneras till en etablerad djurrättsorganisation (t.ex. Djurens Rätt, som har 90-konto och granskas av Svensk Insamlingskontroll). Detta ska kommuniceras transparent på webbplatsen — inte gömmas — och webbplatsen bör på sikt ha en publik "Vår påverkan"-sida som visar totalt donerat belopp.
+**Central mekanism:** en del av intäkten från varje köp doneras till en etablerad djurrättsorganisation (t.ex. Djurens Rätt, som har 90-konto och granskas av Svensk Insamlingskontroll). Detta ska kommuniceras transparent på webbplatsen — inte gömmas. Sidan `/var-paverkan` finns och är byggd för det: räknaren är summan av publicerade rapporter i `src/content/site.ts` (`donationReports`), aldrig en handskriven siffra. Så länge mekanismen inte är beslutad skriver sidan ut just det.
 
 ## 2. Nuvarande fas
 
@@ -99,6 +99,7 @@ Scaffoldingen är byggd så att de regulatoriska kraven i avsnitt 4 upprätthål
 | `src/components/Punkt.tsx` | Den gröna punkten i rubriker. Bara efter påståenden vi kan belägga. |
 | `src/components/Figur.tsx` | Punkten med ögon. Bara på sidor utan köpbeslut, se avsnitt 5. |
 | `src/lib/brand.ts` | Produktfärger per slug, med fallback så att nya produkter fungerar direkt. |
+| `src/lib/donation.ts` | Räknar ut donerad summa ur publicerade rapporter och beskriver mekanismen. |
 | `src/app/produkter/[slug]/page.tsx` | En mall som renderar hela sortimentet. Ny produkt = ny innehållsfil, ingen sidkod. |
 
 Miljövariabler för förhandsgranskning finns dokumenterade i `.env.example` (bl.a. en momsoverride för att se hur sajten ser ut efter 2028).
