@@ -55,6 +55,7 @@ Färger, typsnitt och punktens regler ligger samlade i **`src/app/globals.css`**
 |---|---|
 | `src/components/Logo.tsx` | Ordbilden. Bokstäverna följer textfärgen, punkten följer ytan, så logotypen fungerar på vilken bakgrund som helst. |
 | `src/components/Punkt.tsx` | Den gröna punkten i rubriker. Sätts bara efter påståenden som går att belägga, aldrig efter ett hälsopåstående. |
+| `src/components/Figur.tsx` | Punkten med ögon. Används på 404-sidan och hör hemma där kunden inte ska fatta ett beslut. |
 | `src/lib/brand.ts` | Produktens färg per produkt. Saknas färgen används aubergine, så nya produkter fungerar direkt. |
 | `public/logotyp/` | Färdiga logotypfiler för tryck och tredje part: aubergine, negativ och en färg. |
 | `src/app/icon.svg`, `src/app/opengraph-image.png` | Favikon och delningsbild. |

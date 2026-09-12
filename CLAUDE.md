@@ -58,7 +58,7 @@ Profilen togs fram i fem rundor med gruns.co som inspirationskälla — inte som
 - **Färger.** Aubergine `#2A1230` (botten), Blomkål `#F3F6EC` (ljus yta), Blad `#6BCB62` (punkten på mörkt), Blad djup `#40A037` (punkten på ljust). Produktkoder som detaljer, aldrig ytor: B12 `#F2789A`, D3 `#F6C549`, Omega-3 `#A79CFF`, var och en med en mörk variant för ljus botten (se `src/lib/brand.ts`).
 - **Typsnitt.** Familjen Grotesk för rubriker och brödtext, Martian Mono för siffror, källor och deklarationer. Båda fria under SIL Open Font License, alltså tillåtna även på förpackning.
 - **Punkten i rubriker.** `<Punkt />` sätter samma gröna punkt sist i en rubrik. **Regel:** den avslutar bara påståenden vi kan belägga (ursprung, innehåll, donationer) — aldrig ett hälsopåstående. De står alltid ordagrant som i EU:s register, utan varumärkesgrepp.
-- **Figuren.** Punkten kan få ögon och blir då Vegolos figur. Den vilar på baslinjen, tittar tillbaka på meningen den avslutar och rör sig mjukt (trycks ihop när den landar). Den syns först efter köpet — insidan av locket, orderbekräftelse, sociala medier — aldrig på burkens framsida, i produktinformation eller i kassan. Den är inte byggd i koden ännu.
+- **Figuren.** Punkten kan få ögon och blir då Vegolos figur. Den vilar på baslinjen, tittar tillbaka på meningen den avslutar och rör sig mjukt (trycks ihop när den landar). Den syns där kunden inte ska fatta ett beslut — insidan av locket, orderbekräftelse, tom varukorg, 404-sidan, sociala medier — aldrig på burkens framsida, i produktinformation eller i kassan. I koden ligger den i `src/components/Figur.tsx` och används i dag på 404-sidan. Den blinkar var sjätte sekund, men står stilla för den som har valt reducerad rörelse i systemet.
 - **Kvar att göra:** tryckprov på Blad hos etikettleverantören (grönt flyttar sig mest av alla färger mellan skärm och tryck; be om matchning mot en Pantone-dekorfärg), varumärkesregistrering av ordbilden med punkten i klass 5 hos PRV/EUIPO, och ett målgruppstest av profilen.
 
 ## 6. Teknikstack
@@ -97,6 +97,7 @@ Scaffoldingen är byggd så att de regulatoriska kraven i avsnitt 4 upprätthål
 | `src/app/globals.css` | Den grafiska profilen: färger, typsnitt och punktens regler. Ändra profilen här. |
 | `src/components/Logo.tsx` | Ordbilden som vektor. Bokstäver i `currentColor`, punkten i `--vg-dot`. |
 | `src/components/Punkt.tsx` | Den gröna punkten i rubriker. Bara efter påståenden vi kan belägga. |
+| `src/components/Figur.tsx` | Punkten med ögon. Bara på sidor utan köpbeslut, se avsnitt 5. |
 | `src/lib/brand.ts` | Produktfärger per slug, med fallback så att nya produkter fungerar direkt. |
 | `src/app/produkter/[slug]/page.tsx` | En mall som renderar hela sortimentet. Ny produkt = ny innehållsfil, ingen sidkod. |
 

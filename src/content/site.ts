@@ -54,6 +54,15 @@ export const home = {
   ],
 } as const;
 
+/** Sidan som visas när en adress inte finns. */
+export const missingPage = {
+  label: "404",
+  heading: "Den här sidan finns inte",
+  body: "Adressen kan ha ändrats, eller så har den aldrig funnits. Sortimentet hittar du här nedanför.",
+  cta: "Se sortimentet",
+  secondary: "Till startsidan",
+} as const;
+
 export const navigation = [
   { href: "/", label: "Start" },
   { href: "/produkter", label: "Produkter" },

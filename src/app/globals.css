@@ -88,6 +88,33 @@ h1 {
 }
 
 /*
+ * Figuren blinkar då och då (se Figur.tsx). En blinkning var sjätte sekund är
+ * nog för att den ska kännas levande utan att dra uppmärksamhet från texten.
+ */
+.vg-ogon {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vg-blink 6s infinite;
+}
+
+@keyframes vg-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  95.5% {
+    transform: scaleY(0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-ogon {
+    animation: none;
+  }
+}
+
+/*
  * Vegolo-punkten i rubriker: samma punkt som i logotypen.
  * Tecknet ligger kvar i texten (med genomskinlig färg) så att skärmläsare
  * läser meningen och kopierad text blir rätt — cirkeln är bara målad ovanpå.
